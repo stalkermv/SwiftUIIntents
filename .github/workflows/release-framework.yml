@@ -1,0 +1,57 @@
+name: Release XCFramework
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+      
+      - name: Build XCFramework
+        run: |
+          chmod +x Scripts/build_xcframework.sh
+          Scripts/build_xcframework.sh SwiftUIIntents
+      
+      - name: Verify build artifacts
+        run: |
+          if [ ! -f "build/SwiftUIIntents.xcframework.zip" ]; then
+            echo "Error: XCFramework zip not found"
+            exit 1
+          fi
+          ls -lh build/SwiftUIIntents.xcframework.zip
+      
+      - name: Create GitHub Release and Upload Asset
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Release ${{ steps.version.outputs.version }}
+          body: |
+            XCFramework release for version ${{ steps.version.outputs.version }}
+            
+            ## Artifacts
+            - `SwiftUIIntents.xcframework.zip` - Universal XCFramework for iOS, iOS Simulator, and macOS
+          files: |
+            build/SwiftUIIntents.xcframework.zip
+          draft: false
+          prerelease: false
+

@@ -1,0 +1,15 @@
+{
+  "originHash" : "4357b04b7f3328a4b9fe4921c10e9622188be97e880b5a73a29190faf0eb1a14",
+  "pins" : [
+    {
+      "identity" : "swift-service-context",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-service-context.git",
+      "state" : {
+        "revision" : "1983448fefc717a2bc2ebde5490fe99873c5b8a6",
+        "version" : "1.2.1"
+      }
+    }
+  ],
+  "version" : 3
+}
