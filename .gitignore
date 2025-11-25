@@ -68,5 +68,4 @@ fastlane/test_output
 xcuserdata/
 DerivedData/
 .swiftpm/config/registries.json
-.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 .netrc
