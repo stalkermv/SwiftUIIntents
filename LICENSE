@@ -1,0 +1,70 @@
+License Agreement for SwiftUIIntents
+====================================
+
+Copyright © 2025 Valeriy Malishevskyi
+All rights reserved.
+
+Permission is granted to the recipient (“Licensee”) to use the binary form of
+the SwiftUIIntents software library (the “Software”) solely for integration
+into Licensee’s own applications.
+
+Definitions
+-----------
+- “Software” means the binary SwiftUIIntents library and any updates provided
+  by Licensor.
+- “Application” means any software product developed by Licensee that
+  incorporates the Software.
+- “Licensor” means Valeriy Malishevskyi.
+
+Restrictions
+------------
+- The Software is provided in binary form only. No rights are granted to
+  disclose, modify, translate, reverse engineer, decompile, disassemble, or
+  create derivative works from the Software, except to the limited extent that
+  applicable law expressly permits such activities notwithstanding this
+  limitation.
+- Licensee may not sublicense, rent, lease, sell, redistribute, or otherwise
+  make the Software available to any third party except when embedded as an
+  integral part of Licensee’s application.
+- Licensee must not remove or alter any proprietary notices or licensing
+  information contained in the Software package.
+
+Ownership
+---------
+The Software is licensed, not sold. Valeriy Malishevskyi retains all right,
+title, and interest, including all intellectual property rights, in and to the
+Software and associated documentation. No rights are granted to Licensee other
+than those expressly stated in this Agreement.
+
+Warranty Disclaimer
+-------------------
+THE SOFTWARE IS PROVIDED “AS IS” WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, OR THAT THE SOFTWARE WILL
+OPERATE WITHOUT INTERRUPTION OR ERROR-FREE.
+
+Limitation of Liability
+-----------------------
+IN NO EVENT WILL VALERIY MALISHEVSKYI BE LIABLE FOR ANY INDIRECT, INCIDENTAL,
+SPECIAL, CONSEQUENTIAL, OR EXEMPLARY DAMAGES, OR FOR ANY LOSS OF PROFITS, DATA,
+GOODWILL, OR OTHER INTANGIBLE LOSSES, EVEN IF ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGES. THE AGGREGATE LIABILITY FOR ALL CLAIMS RELATED TO THE SOFTWARE
+WILL NOT EXCEED THE AMOUNT PAID (IF ANY) BY LICENSEE FOR THE SOFTWARE.
+
+Termination
+-----------
+This Agreement is effective until terminated. It automatically terminates if
+Licensee fails to comply with any term. Upon termination, Licensee must cease
+all use of the Software and destroy all copies.
+
+Third-Party Software
+--------------------
+The Software bundles code from third parties, including swift-service-context
+licensed under the Apache License, Version 2.0. Those components remain
+governed by their respective licenses, copies of which are included in the
+Licenses directory. Licensee must comply with all such third-party terms.
+
+Acceptance
+----------
+By using the Software, Licensee agrees to the terms of this License Agreement.
+

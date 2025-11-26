@@ -1,0 +1,16 @@
+# Third-Party Notices
+
+SwiftUIIntents bundles third-party code listed below. Each component remains
+subject to its original license terms. Copies of the referenced licenses and
+NOTICE files are included in the `Licenses/third-party` directory inside every
+distributed XCFramework artifact.
+
+## swift-service-context
+- Project: https://github.com/apple/swift-service-context
+- License: Apache License, Version 2.0
+- Required notice: Included verbatim from `NOTICE.txt`
+
+You must comply with the Apache License, Version 2.0 when using this component.
+A full copy of the license is available in `Licenses/Apache-2.0.txt` and at
+https://www.apache.org/licenses/LICENSE-2.0.
+

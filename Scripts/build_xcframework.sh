@@ -26,11 +26,29 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 PROJECT_BUILD_DIR="${PROJECT_BUILD_DIR:-"${PROJECT_ROOT}/build"}"
 mkdir -p "$PROJECT_BUILD_DIR"
 SWIFTPM_WORKSPACE="$PROJECT_ROOT/.swiftpm/xcode/package.xcworkspace"
+SWIFTPM_CHECKOUTS_DIR="$PROJECT_ROOT/.build/checkouts"
+SWIFT_SERVICE_CONTEXT_DIR="$SWIFTPM_CHECKOUTS_DIR/swift-service-context"
+LICENSE_FILE="$PROJECT_ROOT/LICENSE"
+NOTICE_FILE="$PROJECT_ROOT/NOTICE"
+LICENSES_DIR="$PROJECT_ROOT/LICENSES"
 
 if [ ! -d "$SWIFTPM_WORKSPACE" ]; then
     echo "SwiftPM workspace not found at $SWIFTPM_WORKSPACE. Open the package in Xcode once (or run 'swift package generate-xcodeproj') to generate it."
     exit 1
 fi
+
+REQUIRED_LICENSE_FILES=(
+    "$LICENSE_FILE"
+    "$LICENSES_DIR/Apache-2.0.txt"
+    "$NOTICE_FILE"
+)
+
+for required_file in "${REQUIRED_LICENSE_FILES[@]}"; do
+    if [ ! -f "$required_file" ]; then
+        echo "error: required license artifact '$required_file' is missing."
+        exit 1
+    fi
+done
 
 XCODEBUILD_BUILD_DIR="$PROJECT_BUILD_DIR/xcodebuild"
 XCODEBUILD_DERIVED_DATA_PATH="$XCODEBUILD_BUILD_DIR/DerivedData"
@@ -44,6 +62,27 @@ if [ -z "$PACKAGE_NAME" ]; then
     )
     echo "Using: $PACKAGE_NAME"
 fi
+
+(cd "$PROJECT_ROOT" && swift package resolve >/dev/null)
+
+if [ ! -d "$SWIFT_SERVICE_CONTEXT_DIR" ]; then
+    echo "error: swift-service-context checkout not found in $SWIFT_SERVICE_CONTEXT_DIR after resolving dependencies."
+    exit 1
+fi
+
+bundle_licenses() {
+    local artifact_root="$1"
+    local license_dest="$artifact_root/Licenses"
+    local third_party_dest="$license_dest/third-party/swift-service-context"
+
+    mkdir -p "$third_party_dest"
+
+    cp "$LICENSE_FILE" "$license_dest/LICENSE"
+    cp "$LICENSES_DIR/Apache-2.0.txt" "$license_dest/Apache-2.0.txt"
+    cp "$NOTICE_FILE" "$license_dest/NOTICE"
+    cp "$SWIFT_SERVICE_CONTEXT_DIR/LICENSE.txt" "$third_party_dest/LICENSE.txt"
+    cp "$SWIFT_SERVICE_CONTEXT_DIR/NOTICE.txt" "$third_party_dest/NOTICE.txt"
+}
 
 build_framework() {
     local sdk="$1"
@@ -121,6 +160,8 @@ echo "Builds completed successfully."
         -archive "$PACKAGE_NAME-iphoneos.xcarchive" -framework "$PACKAGE_NAME.framework" \
         -archive "$PACKAGE_NAME-macosx.xcarchive" -framework "$PACKAGE_NAME.framework" \
         -output "$PACKAGE_NAME.xcframework"
+
+    bundle_licenses "$PACKAGE_NAME.xcframework"
 
     cp -r "$PACKAGE_NAME-iphonesimulator.xcarchive/dSYMs" "$PACKAGE_NAME.xcframework/ios-arm64_x86_64-simulator"
     cp -r "$PACKAGE_NAME-iphoneos.xcarchive/dSYMs" "$PACKAGE_NAME.xcframework/ios-arm64"
