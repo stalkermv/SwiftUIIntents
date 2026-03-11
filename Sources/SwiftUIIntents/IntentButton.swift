@@ -9,6 +9,7 @@ import SwiftUI
 internal import ServiceContextModule
 internal import AsyncButton
 
+/// Controls how `IntentButton` behaves when its intent is unavailable.
 public enum IntentButtonMode {
     /// The button is enabled and visible when intent is available. It is disabled when intent is not available.
     case disable
@@ -18,6 +19,7 @@ public enum IntentButtonMode {
     case remove
 }
 
+/// A button wrapper that executes an intent and exposes its execution state to the label.
 public struct IntentButton<Content, PerformResult>: View
 where Content: View, PerformResult: Sendable {
     
@@ -25,10 +27,12 @@ where Content: View, PerformResult: Sendable {
     
     private let content: (IntentBinding<PerformResult>) -> Content
     
+    /// Builds the content using the current `IntentBinding`.
     public var body: some View {
         content($result)
     }
     
+    /// Creates an intent button from an optional intent value.
     public init<T, Label>(
         role: ButtonRole? = nil,
         mode: IntentButtonMode = .disable,
@@ -43,6 +47,7 @@ where Content: View, PerformResult: Sendable {
 }
 
 extension IntentButton {
+    /// Creates an intent button from a non-optional intent value.
     public init<T, Label>(
         role: ButtonRole? = nil,
         mode: IntentButtonMode = .disable,
@@ -54,6 +59,7 @@ extension IntentButton {
 }
 
 extension IntentButton {
+    /// Creates an intent button backed by an existing `IntentBinding`.
     public init<Label>(
         role: ButtonRole? = nil,
         mode: IntentButtonMode = .disable,
@@ -67,6 +73,7 @@ extension IntentButton {
     }
 }
 
+/// The concrete view that renders and drives the underlying async button.
 public struct IntentButtonWrapper<Content: View, PerformResult: Sendable> : View {
     
     let buttonRole: ButtonRole?
@@ -75,6 +82,7 @@ public struct IntentButtonWrapper<Content: View, PerformResult: Sendable> : View
     
     let intentBinding: IntentBinding<PerformResult>
     
+    /// Creates a wrapper around a previously prepared `IntentBinding`.
     public init(
         role: ButtonRole?,
         mode: IntentButtonMode,
@@ -97,6 +105,10 @@ public struct IntentButtonWrapper<Content: View, PerformResult: Sendable> : View
             .preference(
                 key: IntentErrorPreferenceKey.self,
                 value: .init(intentBinding.error)
+            )
+            .preference(
+                key: IntentErrorEventPreferenceKey.self,
+                value: intentBinding.errorEvent
             )
     }
     
@@ -168,6 +180,7 @@ private struct HiddenModifier: ViewModifier {
 }
 
 extension View {
+    /// Performs an intent whenever the supplied equatable value changes.
     public func onChange<T>(of equatable: T?, trigger intent: (some Intent)?) -> some View
     where T: Equatable {
         let modifier = OnChangeIntentModifier(
@@ -205,19 +218,26 @@ where T: Equatable, I: Intent {
                 key: IntentErrorPreferenceKey.self,
                 value: .init($intentState.error)
             )
+            .preference(
+                key: IntentErrorEventPreferenceKey.self,
+                value: $intentState.errorEvent
+            )
     }
 }
 
 extension Intent {
+    /// Returns a new intent that executes `self` and then `other`.
     public func combined<T: Intent>(with other: T) -> CombinedIntent<Self, T> {
         CombinedIntent(self, other)
     }
     
+    /// Returns a new intent that executes `self` and `other` concurrently.
     public func combined<T: Intent>(simultaneously other: T) -> SimultaneousCombinedIntent<Self, T> {
         SimultaneousCombinedIntent(self, other)
     }
 }
 
+/// An intent that runs two intents concurrently and returns both results.
 public struct SimultaneousCombinedIntent<I1: Intent, I2: Intent>: Intent {
     
     public typealias PerformResult = (I1.PerformResult, I2.PerformResult)
@@ -230,6 +250,7 @@ public struct SimultaneousCombinedIntent<I1: Intent, I2: Intent>: Intent {
         self.second = second
     }
  
+    /// Executes both wrapped intents concurrently.
     public func perform(context: Context) async throws -> PerformResult {
         async let firstResult: I1.PerformResult = try await first.perform(context: context)
         async let secondResult: I2.PerformResult = try await second.perform(context: context)
@@ -238,6 +259,7 @@ public struct SimultaneousCombinedIntent<I1: Intent, I2: Intent>: Intent {
     }
 }
 
+/// An intent that runs two intents sequentially and returns both results.
 public struct CombinedIntent<I1: Intent, I2: Intent>: Intent {
     
     public typealias PerformResult = (I1.PerformResult, I2.PerformResult)
@@ -250,6 +272,7 @@ public struct CombinedIntent<I1: Intent, I2: Intent>: Intent {
         self.second = second
     }
  
+    /// Executes the wrapped intents in order.
     public func perform(context: Context) async throws -> PerformResult {
         let firstResult: I1.PerformResult = try await first.perform(context: context)
         let secondResult: I2.PerformResult = try await second.perform(context: context)

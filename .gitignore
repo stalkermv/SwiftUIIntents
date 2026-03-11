@@ -63,9 +63,13 @@ fastlane/test_output
 
 .DS_Store
 /.build
+/.build-local
 /Packages
 /*.xcodeproj
 xcuserdata/
 DerivedData/
 .swiftpm/config/registries.json
 .netrc
+.docc-build/
+/docs/
+RELEASING.md

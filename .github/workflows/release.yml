@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create Source Release
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.1"
+
+      - name: Run tests
+        run: swift test --parallel
+
+      - name: Build package
+        run: swift build
+
+      - name: Build documentation
+        run: |
+          swift package --allow-writing-to-directory ./docs \
+            generate-documentation --target SwiftUIIntents \
+            --output-path ./docs \
+            --transform-for-static-hosting \
+            --hosting-base-path SwiftUIIntents
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            # SwiftUIIntents ${{ github.ref_name }}
+
+            Typed async intents for SwiftUI views, buttons, and state-driven workflows.
+
+            ## Installation
+
+            ```swift
+            dependencies: [
+                .package(url: "https://github.com/stalkermv/SwiftUIIntents.git", from: "${{ github.ref_name }}")
+            ]
+            ```
+
+            ## Documentation
+
+            - DocC: https://stalkermv.github.io/SwiftUIIntents/
+            - Changelog: https://github.com/stalkermv/SwiftUIIntents/blob/main/CHANGELOG.md
+
+            ## Highlights
+
+            - Source-first MIT-licensed Swift Package
+            - Repeatable `onReceiveIntentError(_:)` error events
+            - Intent composition and SwiftUI integration primitives

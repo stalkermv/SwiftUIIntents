@@ -11,10 +11,15 @@ import Observation
 
 @MainActor @Observable final class IntentExecutor<PerformResult: Sendable> {
     
+    /// Describes the latest execution state for an intent.
     public enum State {
+        /// The intent has not started yet.
         case idle
+        /// The intent is currently executing.
         case loading
+        /// The intent finished successfully with an optional result value.
         case success(PerformResult?)
+        /// The intent failed with an error.
         case failure(Error)
         
         var value: PerformResult? {
@@ -36,6 +41,7 @@ import Observation
     
     private(set) var intent: (any Intent<PerformResult>)?
     private(set) var state: State = .idle
+    private(set) var latestErrorEvent: IntentErrorEvent?
     
     init<I: Intent>(intent: I?) where I.PerformResult == PerformResult {
         self.intent = intent
@@ -54,13 +60,16 @@ import Observation
         let signposterState = signposter.beginInterval("Intent Execution", id: signpostID)
         
         state = .loading
+        latestErrorEvent = nil
         do {
             let result: PerformResult? = try await intent.perform(context: context)
             signposter.emitEvent("Execution complete.", id: signpostID)
             state = .success(result)
+            latestErrorEvent = nil
         } catch {
             print("Intent execution failed with error: \(error)")
             state = .failure(error)
+            latestErrorEvent = IntentErrorEvent(error: error)
         }
         signposter.endInterval("Intent Execution", signposterState)
     }

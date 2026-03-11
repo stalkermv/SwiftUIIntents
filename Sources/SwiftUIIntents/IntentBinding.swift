@@ -8,9 +8,9 @@
 import SwiftUI
 internal import ServiceContextModule
 
-/// A property wrapper that binds a SwiftUI view to an `Intent`.
+/// A dynamic property that connects a SwiftUI view to an intent executor.
 @MainActor public struct IntentBinding<PerformResult: Sendable> : DynamicProperty {
-    
+    /// The current intent associated with this binding.
     public var intent: (any Intent<PerformResult>)? {
         executor.intent
     }
@@ -19,6 +19,11 @@ internal import ServiceContextModule
         executor.state.error
     }
     
+    var errorEvent: IntentErrorEvent? {
+        executor.latestErrorEvent
+    }
+    
+    /// Indicates whether the intent is currently executing.
     public var isExecuting: Bool {
         guard case .loading = executor.state else {
             return false
@@ -34,6 +39,7 @@ internal import ServiceContextModule
         self.environment = environment
     }
     
+    /// Executes the bound intent using the current SwiftUI environment as context.
     public func perform() async {
         let context = IntentContextContainer(environment: environment)
         var serviceContext = ServiceContext.topLevel
