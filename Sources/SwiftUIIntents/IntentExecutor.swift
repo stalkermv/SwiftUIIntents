@@ -52,10 +52,14 @@ import Observation
     }
     
     func perform(context: IntentContextContainer) async {
-        guard let intent = intent else {
+        guard let intent else {
             return
         }
-        
+
+        await perform(intent, context: context)
+    }
+
+    func perform(_ intent: any Intent<PerformResult>, context: IntentContextContainer) async {
         let signpostID = signposter.makeSignpostID()
         let signposterState = signposter.beginInterval("Intent Execution", id: signpostID)
         

@@ -41,12 +41,20 @@ internal import ServiceContextModule
     
     /// Executes the bound intent using the current SwiftUI environment as context.
     public func perform() async {
+        guard let intent else {
+            return
+        }
+
+        await perform(intent)
+    }
+
+    func perform(_ intent: any Intent<PerformResult>) async {
         let context = IntentContextContainer(environment: environment)
         var serviceContext = ServiceContext.topLevel
         serviceContext[IntentContextKey.self] = context
         
         await ServiceContext.withValue(serviceContext) {
-            await executor.perform(context: context)
+            await executor.perform(intent, context: context)
         }
     }
 }

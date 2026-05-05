@@ -70,6 +70,38 @@ struct SwiftUIIntentsTests {
         #expect(value == "uk_UA")
     }
 
+    @Test("IntentBinding can perform a supplied dynamic intent")
+    func intentBindingPerformsSuppliedIntent() async throws {
+        let executor = IntentExecutor<String>(intent: nil)
+        let binding = IntentBinding(executor: executor, environment: EnvironmentValues())
+
+        await binding.perform(ConstantIntent(value: "dynamic"))
+
+        guard case .success(let value) = executor.state else {
+            Issue.record("Expected success state")
+            return
+        }
+
+        #expect(value == "dynamic")
+    }
+
+    @Test("IntentPicker overloads compile")
+    func intentPickerOverloadsCompile() {
+        let selection = "automatic"
+
+        _ = IntentPicker(selection, { _ in ConstantIntent(value: "done") }, label: Text("Mode")) {
+            Text("Automatic").tag("automatic")
+        }
+
+        if #available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *) {
+            _ = IntentPicker(selection, { _ in ConstantIntent(value: "done") }, label: Text("Mode")) {
+                Text("Automatic").tag("automatic")
+            } currentValueLabel: {
+                Text("Automatic")
+            }
+        }
+    }
+
     @Test("Repeated equal errors stay equal for change-based observation")
     func changeBasedErrorObservationCoalescesEqualErrors() {
         let first = IntentErrorPreferenceKey.EquatableError(SampleError.sameMessage)
