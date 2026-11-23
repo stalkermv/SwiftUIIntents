@@ -6,15 +6,16 @@
 //
 
 import SwiftUI
-internal import ServiceContextModule
 
 /// A dynamic property that connects a SwiftUI view to an intent executor.
 @MainActor public struct IntentBinding<PerformResult: Sendable> : DynamicProperty {
     /// The current intent associated with this binding.
-    public var intent: (any Intent<PerformResult>)? {
-        executor.intent
-    }
-    
+    ///
+    /// Carried directly rather than read back off the executor: the executor is
+    /// long-lived, while this value is rebuilt from the view on every evaluation
+    /// and so always reflects the current arguments.
+    public let intent: (any Intent<PerformResult>)?
+
     var error: Error? {
         executor.state.error
     }
@@ -33,9 +34,20 @@ internal import ServiceContextModule
     
     private var executor: IntentExecutor<PerformResult>
     private let environment: EnvironmentValues
-    
-    init(executor: IntentExecutor<PerformResult>, environment: EnvironmentValues) {
+
+    /// Identity of the underlying executor, used by tests to detect that state
+    /// was silently discarded and rebuilt across a re-render.
+    var executorIdentity: ObjectIdentifier {
+        ObjectIdentifier(executor)
+    }
+
+    init(
+        executor: IntentExecutor<PerformResult>,
+        intent: (any Intent<PerformResult>)?,
+        environment: EnvironmentValues
+    ) {
         self.executor = executor
+        self.intent = intent
         self.environment = environment
     }
     
@@ -49,12 +61,10 @@ internal import ServiceContextModule
     }
 
     func perform(_ intent: any Intent<PerformResult>) async {
+        // Builds the context and hands it over; the executor installs it, so
+        // callers that skip this binding are covered too.
         let context = IntentContextContainer(environment: environment)
-        var serviceContext = ServiceContext.topLevel
-        serviceContext[IntentContextKey.self] = context
-        
-        await ServiceContext.withValue(serviceContext) {
-            await executor.perform(intent, context: context)
-        }
+
+        await executor.perform(intent, context: context)
     }
 }

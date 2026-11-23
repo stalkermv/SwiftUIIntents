@@ -10,7 +10,7 @@ let package = Package(
         .library(name: "SwiftUIIntents", targets: ["SwiftUIIntents"])
     ],
     dependencies: [
-        .package(url: "https://github.com/stalkermv/CustomComponents.git", from: "1.0.2"),
+        .package(url: "https://github.com/stalkermv/CustomComponents.git", from: "2.0.0-beta.2"),
         .package(url: "https://github.com/apple/swift-service-context.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.4.0"),
         .package(url: "https://github.com/nalexn/ViewInspector.git", from: "0.10.3"),

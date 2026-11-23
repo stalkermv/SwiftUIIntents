@@ -13,6 +13,7 @@ Use the package when you want:
 - environment access inside intents without prop drilling
 - reusable error handling for repeated failures
 - composition of sequential and concurrent intent flows
+- pickers that commit a selection by running an intent
 
 ```swift
 struct SaveIntent: Intent {
@@ -48,17 +49,22 @@ struct ComposerView: View {
 - ``IntentState``
 - ``IntentBinding``
 - ``IntentButton``
+- ``IntentPicker``
 - ``IntentContext``
+- ``EmptyIntent``
+- ``EmptyIntentResult``
 
 ### Error Handling
 
-- ``IntentButton/onChangeIntentError(_:)``
-- ``IntentButton/onReceiveIntentError(_:)``
+- ``SwiftUICore/View/onChangeIntentError(_:)``
+- ``SwiftUICore/View/onReceiveIntentError(_:)``
 
 ### Composition
 
-- ``SwiftUIIntents/Intent/combined(with:)``
-- ``SwiftUIIntents/Intent/combined(simultaneously:)``
+- ``Intent/combined(with:)``
+- ``Intent/combined(simultaneously:)``
+- ``CombinedIntent``
+- ``SimultaneousCombinedIntent``
 
 ### Guides
 

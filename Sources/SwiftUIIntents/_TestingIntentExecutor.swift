@@ -22,6 +22,8 @@ public struct _TestingIntentExecutor<I: Intent> {
     @MainActor @_spi(Testing)
     public func run() async throws -> I.PerformResult {
         let context = IntentContextContainer(environment: environment)
-        return try await intent.perform(context: context)
+        return try await withIntentContext(context) {
+            try await intent.perform(context: context)
+        }
     }
 }
