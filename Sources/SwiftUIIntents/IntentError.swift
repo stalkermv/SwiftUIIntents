@@ -52,22 +52,31 @@ extension View {
 
 struct IntentErrorPreferenceKey: PreferenceKey {
     
+    /// A failure worth reporting.
+    ///
+    /// The stored error is non-optional, so an "empty" container cannot exist.
+    /// A child with nothing to report gets `nil` back from the failable
+    /// initialiser and publishes `nil`, which `reduce` knows to ignore — instead
+    /// of publishing a non-`nil` wrapper around a `nil` error that would erase a
+    /// failing sibling.
     struct EquatableError: Equatable {
-        let error: Error?
+        let error: Error
         
-        init(_ error: Error?) {
+        init?(_ error: Error?) {
+            guard let error else { return nil }
             self.error = error
         }
         
         static func == (lhs: Self, rhs: Self) -> Bool {
-            return lhs.error?.localizedDescription == rhs.error?.localizedDescription
+            return lhs.error.localizedDescription == rhs.error.localizedDescription
         }
     }
     
     static let defaultValue: EquatableError? = nil
     
     static func reduce(value: inout EquatableError?, nextValue: () -> EquatableError?) {
-        value = nextValue()
+        // A child with nothing to report must not erase a sibling that has.
+        value = nextValue() ?? value
     }
 }
 
@@ -75,6 +84,7 @@ struct IntentErrorEventPreferenceKey: PreferenceKey {
     static let defaultValue: IntentErrorEvent? = nil
     
     static func reduce(value: inout IntentErrorEvent?, nextValue: () -> IntentErrorEvent?) {
-        value = nextValue()
+        // A child with nothing to report must not erase a sibling that has.
+        value = nextValue() ?? value
     }
 }
