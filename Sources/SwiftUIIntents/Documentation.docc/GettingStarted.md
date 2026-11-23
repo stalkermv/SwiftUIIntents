@@ -47,7 +47,7 @@ var body: some View {
 
 ## Trigger from state changes
 
-Use ``IntentButton/onChange(of:trigger:)`` to run an intent when an
+Use ``SwiftUICore/View/onChange(of:trigger:)`` to run an intent when an
 equatable value changes.
 
 ```swift
