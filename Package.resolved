@@ -1,13 +1,13 @@
 {
-  "originHash" : "f1631ebb2bcabace17bfd0ed4150e5f6d13783660248f0c33bd88ca9aeb2425a",
+  "originHash" : "f8e5b277952c7faa922cc86a2293a2d33a6c4361a078e190fa12f7ad2ec0d7be",
   "pins" : [
     {
       "identity" : "customcomponents",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/stalkermv/CustomComponents.git",
       "state" : {
-        "revision" : "1ac59048e83c739b4980374317938cdd24626841",
-        "version" : "2.0.0-beta.1"
+        "revision" : "71619b1ef1c7ffeaa45da592714d5d8b7647d8f9",
+        "version" : "2.0.0-beta.2"
       }
     },
     {
@@ -26,15 +26,6 @@
       "state" : {
         "revision" : "b45d1f2ed151d057b54504d653e0da5552844e34",
         "version" : "1.0.0"
-      }
-    },
-    {
-      "identity" : "swift-log",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-log",
-      "state" : {
-        "revision" : "bbd81b6725ae874c69e9b8c8804d462356b55523",
-        "version" : "1.10.1"
       }
     },
     {
@@ -69,8 +60,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/stalkermv/SwiftUIHelpers.git",
       "state" : {
-        "revision" : "9261cd64edf37c3304c33f1bc945090effc3de65",
-        "version" : "1.1.4"
+        "revision" : "6f6af071b6468e7e5c922fb70e52eb3bddb1c778",
+        "version" : "2.0.0-beta.1"
       }
     },
     {
