@@ -46,16 +46,16 @@ public struct IntentButton<I: Intent, Label: View>: View {
     /// Creates a button that runs `intent` when it is pressed.
     ///
     /// - Parameters:
+    ///   - intent: The intent to run, or `nil` when there is nothing to run.
     ///   - role: The button's role.
     ///   - mode: What the button does when `intent` is `nil`.
     ///   - handle: A handle that can cancel the run.
-    ///   - intent: The intent to run, or `nil` when there is nothing to run.
     ///   - label: The button's label.
     public init(
+        _ intent: I?,
         role: ButtonRole? = nil,
         mode: IntentButtonMode = .disable,
         handle: IntentHandle<I>? = nil,
-        _ intent: I?,
         @ViewBuilder label: @escaping () -> Label
     ) {
         self.role = role

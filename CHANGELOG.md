@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `IntentState`, `IntentBinding` and `IntentButtonWrapper` are removed. `IntentButton(intent) { … }` replaces `IntentButton($binding) { … }`, and the result is read with `onChangeIntentValue(of:)`
 - `Intent` has one requirement, `perform(context:) async throws -> PerformResult`. An intent without a result implements it without a return value and its result is `Void`
 - `onChange(of:trigger:)` no longer runs when the view appears. It is now `onChange(of:initial:trigger:handle:)` with `initial: false`, like SwiftUI; pass `initial: true` for the old behaviour
+- `IntentButton` takes the intent first: `IntentButton(intent, role:, mode:, handle:) { … }`. A 1.x call that put `role:` or `mode:` before the intent must be reordered
 - `IntentPicker` has three initializers instead of eight: label closure, label value, and a current-value label
 - The minimum platforms are iOS 17, macOS 14, tvOS 17 and watchOS 10 (macOS and watchOS were 15 and 11); depends on CustomComponents `2.0.0-beta.5`
 

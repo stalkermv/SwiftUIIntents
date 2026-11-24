@@ -120,7 +120,7 @@ when an error that was reported is cleared.
 ```swift
 @State private var upload = IntentHandle<UploadIntent>()
 
-IntentButton(handle: upload, UploadIntent(file: file)) { Text("Upload") }
+IntentButton(UploadIntent(file: file), handle: upload) { Text("Upload") }
 Button("Cancel") { upload.cancel() }
 ```
 
@@ -174,6 +174,7 @@ cancellation) and `ProgressReportingIntent` (publishes a `Progress`).
 |---|---|
 | `@IntentState var x` | Removed. Observe the result with `.onChangeIntentValue(of:)` |
 | `IntentButton($binding) { … }` | `IntentButton(MyIntent(…)) { … }` |
+| `IntentButton(role: .destructive, intent) { … }` | `IntentButton(intent, role: .destructive) { … }`; the intent comes first |
 | `IntentBinding`, `IntentButtonWrapper` | Removed |
 | `typealias PerformResult = EmptyIntentResult` and `return EmptyIntentResult()` | Delete both lines; the result is `Void` |
 | `onChange(of:trigger:)` ran on appear | Add `initial: true` to keep that |

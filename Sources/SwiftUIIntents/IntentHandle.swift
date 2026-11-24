@@ -12,7 +12,7 @@ import SwiftUI
 /// ```swift
 /// @State private var upload = IntentHandle<UploadIntent>()
 ///
-/// IntentButton(handle: upload, UploadIntent(file: file)) { Text("Upload") }
+/// IntentButton(UploadIntent(file: file), handle: upload) { Text("Upload") }
 /// Button("Cancel") { upload.cancel() }
 /// ```
 ///

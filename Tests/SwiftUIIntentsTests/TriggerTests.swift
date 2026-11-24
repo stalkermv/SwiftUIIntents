@@ -375,7 +375,8 @@ struct OverloadShapeTests {
             .onDisappear { }
 
         _ = IntentToggle(isOn: false, { _ in intent }) { Text("Toggle") }
-        _ = IntentButton(handle: IntentHandle<StepIntent>(), intent) { Text("Run") }
+        _ = IntentButton(intent, role: .destructive, mode: .hide, handle: IntentHandle<StepIntent>()) { Text("Run") }
+        _ = IntentButton(intent) { Text("Run") }
         _ = Text("x").onChange(of: 1, initial: true, trigger: intent, handle: IntentHandle<StepIntent>())
 
         #if !os(tvOS)
