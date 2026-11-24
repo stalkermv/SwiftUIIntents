@@ -33,18 +33,13 @@ Composed intents work anywhere a normal intent works:
 
 ```swift
 struct FeedScreen: View {
-    @IntentState private var payload: (Feed, [Recommendation])?
-
-    init() {
-        _payload = IntentState(
-            LoadFeedIntent()
-                .combined(simultaneously: LoadRecommendationsIntent())
-        )
-    }
+    @State private var payload: (Feed, [Recommendation])?
 
     var body: some View {
-        IntentButton($payload) {
-            Text($payload.isExecuting ? "Loading..." : "Reload")
+        IntentButton(
+            LoadFeedIntent().combined(simultaneously: LoadRecommendationsIntent())
+        ) {
+            Text("Reload")
         }
     }
 }
