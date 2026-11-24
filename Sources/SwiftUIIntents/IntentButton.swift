@@ -91,7 +91,7 @@ extension View {
     ///
     /// A new value cancels the run that is still in flight and starts a new one, so
     /// an older, slower run cannot overwrite the result of a newer one. A cancelled
-    /// run is not reported as an error. Leaving the view cancels the run too.
+    /// run is not reported as an error. Removing the view cancels the run too.
     ///
     /// - Parameters:
     ///   - equatable: The value to watch.
@@ -138,9 +138,6 @@ where T: Equatable, I: Intent {
                 owner.start(policy: .cancelAndRestart) { [executor, handle] in
                     await executor.perform(intent, context: context, handle: handle)
                 }
-            }
-            .onDisappear {
-                owner.cancel()
             }
             .intentReporting(executor)
     }

@@ -25,6 +25,7 @@ extension CancellableIntent {
     /// context when the call starts, because the cancellation handler runs on
     /// whichever thread asked for the cancellation, outside the run's task-local
     /// values.
+    @MainActor
     public func withIntentCancellationHandler<T>(
         operation: () async throws -> T,
         onCancel: @escaping @Sendable (IntentCancellationReason) -> Void
