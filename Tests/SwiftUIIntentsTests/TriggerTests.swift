@@ -29,10 +29,11 @@ private struct StepIntent: Intent {
 
 private struct SlowLongIntent: LongRunningIntent {
     let counter: Counter
+    var delay: Duration = .milliseconds(200)
 
     func perform(context: Context) async throws -> String {
         counter.runs += 1
-        try await Task.sleep(for: .milliseconds(200))
+        try await Task.sleep(for: delay)
         counter.finished += 1
         return "long"
     }
@@ -174,7 +175,7 @@ struct LongRunningTests {
         let counter = Counter()
         let executor = IntentExecutor<String>()
         let task = Task { @MainActor in
-            await executor.perform(StepIntent(counter: counter, label: "plain", delay: .milliseconds(300)), context: makeContext())
+            await executor.perform(StepIntent(counter: counter, label: "plain", delay: .seconds(30)), context: makeContext())
         }
         #expect(await waitFor { counter.runs == 1 })
         task.cancel()
@@ -208,7 +209,7 @@ struct LongRunningTests {
         let executor = IntentExecutor<String>()
         let handle = IntentHandle<SlowLongIntent>()
         let task = Task { @MainActor in
-            await executor.perform(SlowLongIntent(counter: counter), context: makeContext(), handle: handle)
+            await executor.perform(SlowLongIntent(counter: counter, delay: .seconds(30)), context: makeContext(), handle: handle)
         }
         #expect(await waitFor { counter.runs == 1 })
         task.cancel()      // the view goes away: the run is not cancelled
