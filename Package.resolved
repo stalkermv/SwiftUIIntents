@@ -1,13 +1,13 @@
 {
-  "originHash" : "f8e5b277952c7faa922cc86a2293a2d33a6c4361a078e190fa12f7ad2ec0d7be",
+  "originHash" : "b86f5c187ab5de9e427f15a4b36a5ebb3151c1a33cacf72d0d343938a586baca",
   "pins" : [
     {
       "identity" : "customcomponents",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/stalkermv/CustomComponents.git",
       "state" : {
-        "revision" : "71619b1ef1c7ffeaa45da592714d5d8b7647d8f9",
-        "version" : "2.0.0-beta.2"
+        "revision" : "9e18aeadac739ca6fca44fb287680d0160211b75",
+        "version" : "2.0.0-beta.5"
       }
     },
     {
@@ -60,8 +60,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/stalkermv/SwiftUIHelpers.git",
       "state" : {
-        "revision" : "6f6af071b6468e7e5c922fb70e52eb3bddb1c778",
-        "version" : "2.0.0-beta.1"
+        "revision" : "4ba031322c8a5366e9e1d068c0d9bf325b132169",
+        "version" : "2.0.0-beta.2"
       }
     },
     {

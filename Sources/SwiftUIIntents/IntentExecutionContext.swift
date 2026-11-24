@@ -17,10 +17,12 @@ internal import ServiceContextModule
 @MainActor
 func withIntentContext<T>(
     _ context: IntentContextContainer,
+    cancellationBox: IntentCancellationBox = IntentCancellationBox(),
     operation: () async throws -> T
 ) async rethrows -> T {
     var serviceContext = ServiceContext.topLevel
     serviceContext[IntentContextKey.self] = context
+    serviceContext[IntentCancellationBoxKey.self] = cancellationBox
 
     return try await ServiceContext.withValue(serviceContext) {
         try await operation()

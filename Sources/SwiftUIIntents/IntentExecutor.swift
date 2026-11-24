@@ -46,50 +46,120 @@ private let intentLogger = Logger(
     }
     
     private let signposter = OSSignposter()
-    
+
     private(set) var state: State = .idle
+    private(set) var phase: IntentPhase = .idle
     private(set) var latestErrorEvent: IntentErrorEvent?
+    /// The most recent events of this executor's runs, newest last.
+    private(set) var events: [IntentEvent] = []
+    /// The latest run; an older run that finishes late must not overwrite it.
+    private var currentRun = UUID()
 
     init() {}
 
-    func perform(_ intent: any Intent<PerformResult>, context: IntentContextContainer) async {
+    private func emit(
+        _ kind: IntentEvent.Kind,
+        type: ObjectIdentifier,
+        identifier: String
+    ) {
+        events.append(IntentEvent(intentType: type, identifier: identifier, kind: kind))
+        if events.count > 32 {
+            events.removeFirst(events.count - 32)
+        }
+    }
+
+    /// Runs `intent` in a task of its own and waits for it.
+    ///
+    /// The run is a separate task so that a handle can cancel exactly this run, and
+    /// so that a ``LongRunningIntent`` can be left running when the task that
+    /// called this method is cancelled because its view went away.
+    func perform(
+        _ intent: any Intent<PerformResult>,
+        context: IntentContextContainer,
+        handle: (any IntentRunBinding)? = nil
+    ) async {
         let signpostID = signposter.makeSignpostID()
         let name: StaticString = "Intent Execution"
+        let identifier = intent.identifier
+        let type = ObjectIdentifier(Swift.type(of: intent))
+        let isLongRunning = intent is any LongRunningIntent
         // The interval *name* must be a StaticString, so the intent cannot be
         // the name. Passing it as the interval's message is what makes separate
         // intents distinguishable in Instruments.
         let signposterState = signposter.beginInterval(
             name,
             id: signpostID,
-            "\(intent.identifier, privacy: .public)"
+            "\(identifier, privacy: .public)"
         )
         defer { signposter.endInterval(name, signposterState) }
 
+        let thisRun = UUID()
+        currentRun = thisRun
         state = .loading
+        phase = .running
         latestErrorEvent = nil
+        emit(.phase(.running), type: type, identifier: identifier)
+        if let reporting = intent as? any ProgressReportingIntent {
+            emit(.progress(reporting.progress), type: type, identifier: identifier)
+        }
 
-        do {
-            // The context is installed here, not at the binding, so that every
-            // caller of this method is covered — including tests, which reach the
-            // executor directly.
-            let result: PerformResult? = try await withIntentContext(context) {
+        let box = IntentCancellationBox()
+        // The context is installed here, not at the view, so that every caller of
+        // this method is covered, including tests, which reach the executor
+        // directly. `Task { }` inherits task-local values and the main actor, so
+        // `@IntentContext` works inside the intent; `Task.detached` would not.
+        let run = Task { @MainActor () throws -> PerformResult in
+            try await withIntentContext(context, cancellationBox: box) {
                 try await intent.perform(context: context)
             }
+        }
+        handle?.bind { reason in
+            box.record(reason)
+            run.cancel()
+        }
+        let registryID = isLongRunning ? LongRunningIntentRegistry.shared.register(identifier) : nil
+        defer {
+            handle?.unbind()
+            if let registryID { LongRunningIntentRegistry.shared.finish(registryID) }
+        }
+
+        do {
+            let result = try await withTaskCancellationHandler {
+                try await run.value
+            } onCancel: {
+                // A long-running intent is not cancelled with its view.
+                if !isLongRunning { run.cancel() }
+            }
             signposter.emitEvent("Execution complete.", id: signpostID)
+            guard currentRun == thisRun else { return }
             state = .success(result)
+            phase = .finished
             latestErrorEvent = nil
+            emit(.value(result), type: type, identifier: identifier)
+            emit(.phase(.finished), type: type, identifier: identifier)
         } catch is CancellationError {
-            // Cancellation is routine: the view disappeared, or a .task(id:)
-            // was superseded. It is not something to show the user.
-            intentLogger.debug("Intent \(intent.identifier, privacy: .public) cancelled")
+            // Cancellation is routine: the view disappeared, a `.task(id:)` was
+            // superseded, or a handle stopped the run. It is not an error.
+            intentLogger.debug("Intent \(identifier, privacy: .public) cancelled")
+            guard currentRun == thisRun else { return }
             state = .idle
+            phase = .cancelled
             latestErrorEvent = nil
+            emit(.phase(.cancelled), type: type, identifier: identifier)
         } catch {
             intentLogger.error(
-                "Intent \(intent.identifier, privacy: .public) failed: \(error.localizedDescription, privacy: .public)"
+                "Intent \(identifier, privacy: .public) failed: \(error.localizedDescription, privacy: .public)"
             )
+            if isLongRunning {
+                LongRunningIntentRegistry.shared.logFailure(identifier, error)
+            }
+            guard currentRun == thisRun else { return }
             state = .failure(error)
-            latestErrorEvent = IntentErrorEvent(error: error)
+            phase = .failed
+            let event = IntentErrorEvent(error: error)
+            latestErrorEvent = event
+            emit(.error(error), type: type, identifier: identifier)
+            emit(.phase(.failed), type: type, identifier: identifier)
         }
     }
 }

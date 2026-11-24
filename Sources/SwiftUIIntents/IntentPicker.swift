@@ -8,6 +8,19 @@
 import SwiftUI
 
 /// A picker that commits user selection changes by executing an intent.
+///
+/// The picker shows the new selection at once, runs the intent, and returns to the
+/// value you supply as the source of truth when the intent finishes. While the
+/// intent runs the picker is disabled and `isLoading` is `true`.
+///
+/// ```swift
+/// IntentPicker(theme, { SetThemeIntent(theme: $0) }) {
+///     Text("Light").tag(Theme.light)
+///     Text("Dark").tag(Theme.dark)
+/// } label: {
+///     Text("Theme")
+/// }
+/// ```
 public struct IntentPicker<Label, SelectionValue, Content, I>: View
 where Label: View, SelectionValue: Hashable, Content: View, I: Intent {
     private let currentSelection: SelectionValue
@@ -17,7 +30,8 @@ where Label: View, SelectionValue: Hashable, Content: View, I: Intent {
     private let currentValueLabel: (() -> AnyView)?
 
     @State private var pendingRequest: PendingSelectionRequest<SelectionValue, I>?
-    @IntentState(I.PerformResult.self) private var intentResult
+    @State private var executor = IntentExecutor<I.PerformResult>()
+    @Environment(\.self) private var environment
 
     private init(
         _ selection: SelectionValue,
@@ -36,15 +50,7 @@ where Label: View, SelectionValue: Hashable, Content: View, I: Intent {
     public var body: some View {
         picker
             .disabled(isBusy)
-            .environment(\.isLoading, $intentResult.isExecuting)
-            .preference(
-                key: IntentErrorPreferenceKey.self,
-                value: .init($intentResult.error)
-            )
-            .preference(
-                key: IntentErrorEventPreferenceKey.self,
-                value: $intentResult.errorEvent
-            )
+            .intentReporting(executor)
             .task(id: pendingRequest?.id) {
                 await performPendingRequest()
             }
@@ -55,7 +61,7 @@ where Label: View, SelectionValue: Hashable, Content: View, I: Intent {
     }
 
     private var isBusy: Bool {
-        pendingRequest != nil || $intentResult.isExecuting
+        pendingRequest != nil || executor.phase == .running
     }
 
     private var selection: Binding<SelectionValue> {
@@ -115,7 +121,10 @@ where Label: View, SelectionValue: Hashable, Content: View, I: Intent {
             return
         }
 
-        await $intentResult.perform(request.intent)
+        await executor.perform(
+            request.intent,
+            context: IntentContextContainer(environment: environment)
+        )
         finish(request)
     }
 
@@ -179,91 +188,6 @@ extension IntentPicker {
             currentValueLabel: { AnyView(currentValueLabel()) },
             content: content,
             label: label
-        )
-    }
-
-    /// Creates a picker with a concrete label view and a current-value label.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-    public init<CurrentValueLabel: View>(
-        _ selection: SelectionValue,
-        _ intent: @escaping (SelectionValue) -> I?,
-        label: Label,
-        @ViewBuilder content: () -> Content,
-        @ViewBuilder currentValueLabel: @escaping () -> CurrentValueLabel
-    ) {
-        self.init(
-            selection,
-            intent,
-            currentValueLabel: { AnyView(currentValueLabel()) },
-            content: content,
-            label: { label }
-        )
-    }
-
-    /// Creates a picker that builds an intent for each selected value.
-    public init(
-        _ selection: SelectionValue,
-        _ intent: @escaping (SelectionValue) -> I,
-        @ViewBuilder content: () -> Content,
-        @ViewBuilder label: () -> Label
-    ) {
-        self.init(
-            selection,
-            { intent($0) as I? },
-            currentValueLabel: nil,
-            content: content,
-            label: label
-        )
-    }
-
-    /// Creates a picker with a concrete label view.
-    public init(
-        _ selection: SelectionValue,
-        _ intent: @escaping (SelectionValue) -> I,
-        label: Label,
-        @ViewBuilder content: () -> Content
-    ) {
-        self.init(
-            selection,
-            { intent($0) as I? },
-            label: label,
-            content: content
-        )
-    }
-
-    /// Creates a picker that also supplies a current-value label for modern picker styles.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-    public init<CurrentValueLabel: View>(
-        _ selection: SelectionValue,
-        _ intent: @escaping (SelectionValue) -> I,
-        @ViewBuilder content: () -> Content,
-        @ViewBuilder label: () -> Label,
-        @ViewBuilder currentValueLabel: @escaping () -> CurrentValueLabel
-    ) {
-        self.init(
-            selection,
-            { intent($0) as I? },
-            currentValueLabel: { AnyView(currentValueLabel()) },
-            content: content,
-            label: label
-        )
-    }
-
-    /// Creates a picker with a concrete label view and a current-value label.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
-    public init<CurrentValueLabel: View>(
-        _ selection: SelectionValue,
-        _ intent: @escaping (SelectionValue) -> I,
-        label: Label,
-        @ViewBuilder content: () -> Content,
-        @ViewBuilder currentValueLabel: @escaping () -> CurrentValueLabel
-    ) {
-        self.init(
-            selection,
-            { intent($0) as I? },
-            label: label,
-            content: content,
-            currentValueLabel: currentValueLabel
         )
     }
 }
