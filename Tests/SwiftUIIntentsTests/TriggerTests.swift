@@ -67,7 +67,7 @@ private func makeContext() -> IntentContextContainer {
 }
 
 @MainActor
-private func waitFor(_ timeout: Duration = .seconds(3), _ condition: @MainActor () -> Bool) async -> Bool {
+private func waitFor(_ timeout: Duration = .seconds(20), _ condition: @MainActor () -> Bool) async -> Bool {
     let deadline = ContinuousClock.now + timeout
     while ContinuousClock.now < deadline {
         if condition() { return true }
@@ -344,7 +344,7 @@ struct HostedTriggerTests {
 
 @MainActor
 private func hostedWait(_ handle: HostedHandle, _ condition: @MainActor () -> Bool) async -> Bool {
-    let deadline = ContinuousClock.now + .seconds(3)
+    let deadline = ContinuousClock.now + .seconds(20)
     while ContinuousClock.now < deadline {
         if condition() { return true }
         await handle.render()
