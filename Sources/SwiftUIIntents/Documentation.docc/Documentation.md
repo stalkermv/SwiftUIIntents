@@ -17,13 +17,10 @@ Use the package when you want:
 
 ```swift
 struct SaveIntent: Intent {
-    typealias PerformResult = EmptyIntentResult
-
     let text: String
 
-    func perform(context: Context) async throws -> EmptyIntentResult {
+    func perform(context: Context) async throws {
         try await DraftService.shared.save(text, locale: context.locale)
-        return EmptyIntentResult()
     }
 }
 
@@ -52,7 +49,7 @@ struct ComposerView: View {
 - ``IntentPicker``
 - ``IntentContext``
 - ``EmptyIntent``
-- ``EmptyIntentResult``
+- ``DismissIntent``
 
 ### Error Handling
 

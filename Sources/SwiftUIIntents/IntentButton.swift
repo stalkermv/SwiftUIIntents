@@ -181,6 +181,11 @@ private struct HiddenModifier: ViewModifier {
 
 extension View {
     /// Performs an intent whenever the supplied equatable value changes.
+    ///
+    /// The intent runs once when the view appears and again each time `equatable`
+    /// changes. A new value cancels the run that is still in flight and starts a
+    /// new one, so an older, slower run cannot overwrite the result of a newer
+    /// one. A cancelled run is not reported as a failure.
     public func onChange<T>(of equatable: T?, trigger intent: (some Intent)?) -> some View
     where T: Equatable {
         let modifier = OnChangeIntentModifier(

@@ -32,10 +32,12 @@ extension View {
     /// This modifier behaves like SwiftUI's `onChange`: the handler runs only when
     /// the observed error value changes. Repeating the same error payload will not
     /// trigger the handler again until the underlying error state changes.
+    ///
+    /// The handler is not called with `nil` when the view appears with nothing to
+    /// report. It receives `nil` only when a previously reported error is cleared,
+    /// for example when the intent runs again.
     public func onChangeIntentError(_ handler: @escaping (Error?) -> Void) -> some View {
-        self.onPreferenceChange(IntentErrorPreferenceKey.self) { container in
-            handler(container?.error)
-        }
+        modifier(IntentErrorChangeModifier(handler: handler))
     }
     
     /// Receives every emitted intent failure event, including repeated occurrences
@@ -46,6 +48,29 @@ extension View {
                 return
             }
             handler(event.error)
+        }
+    }
+}
+
+struct IntentErrorChangeModifier: ViewModifier {
+    let handler: (Error?) -> Void
+
+    /// Whether an error has been reported and not yet cleared.
+    ///
+    /// The preference starts out as `nil`, and `onPreferenceChange` reports that
+    /// first value when the view appears. A `nil` is only worth delivering when
+    /// it clears an error that was reported before.
+    @State private var hasReportedError = false
+
+    func body(content: Content) -> some View {
+        content.onPreferenceChange(IntentErrorPreferenceKey.self) { container in
+            if let container {
+                hasReportedError = true
+                handler(container.error)
+            } else if hasReportedError {
+                hasReportedError = false
+                handler(nil)
+            }
         }
     }
 }

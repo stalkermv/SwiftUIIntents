@@ -744,3 +744,66 @@ struct IntentButtonTests {
         }
     }
 }
+
+private final class RawErrorRecorder {
+    /// Every value `onChangeIntentError` delivered; `nil` is `.some(nil)`'s
+    /// absence, so a delivered `nil` appears as the string "nil".
+    var calls: [String] = []
+}
+
+private struct SingleButtonHarness: View {
+    let binding: IntentBinding<String>
+    let recorder: RawErrorRecorder
+
+    var body: some View {
+        IntentButton(binding) {
+            Text("run")
+        }
+        .onChangeIntentError { error in
+            recorder.calls.append(error?.localizedDescription ?? "nil")
+        }
+    }
+}
+
+@MainActor
+struct ChangeIntentErrorTests {
+    @Test("onChangeIntentError is not called with nil when the view appears")
+    func noNilOnAppear() async {
+        let executor = IntentExecutor<String>()
+        let binding = IntentBinding<String>(
+            executor: executor,
+            intent: ConstantIntent(value: "ok"),
+            environment: EnvironmentValues()
+        )
+        let recorder = RawErrorRecorder()
+
+        await withHostedView(SingleButtonHarness(binding: binding, recorder: recorder)) { handle in
+            await handle.render()
+            #expect(recorder.calls.isEmpty, "the handler ran on appear with \(recorder.calls)")
+        }
+    }
+
+    @Test("onChangeIntentError reports an error and then reports it cleared")
+    func reportsErrorThenClear() async {
+        let executor = IntentExecutor<String>()
+        let binding = IntentBinding<String>(
+            executor: executor,
+            intent: FailingIntent(),
+            environment: EnvironmentValues()
+        )
+        let recorder = RawErrorRecorder()
+        let context = IntentContextContainer(environment: EnvironmentValues())
+
+        await withHostedView(SingleButtonHarness(binding: binding, recorder: recorder)) { handle in
+            await binding.perform()
+            let failed = await renderUntil(handle) { !recorder.calls.isEmpty }
+            #expect(failed)
+            #expect(recorder.calls == [SampleError.sameMessage.localizedDescription])
+
+            await executor.perform(ConstantIntent(value: "ok"), context: context)
+            let cleared = await renderUntil(handle) { recorder.calls.count == 2 }
+            #expect(cleared)
+            #expect(recorder.calls == [SampleError.sameMessage.localizedDescription, "nil"])
+        }
+    }
+}
