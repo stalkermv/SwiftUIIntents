@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.0-beta.5] - 2026-11-24
+
+### Added
+- `DismissIntent`, a built-in intent that dismisses the sheet, popover or pushed screen the triggering view is in
+
+### Fixed
+- `onChangeIntentError(_:)` no longer calls its handler with `nil` when the view appears; it receives `nil` only when an error that was reported before is cleared
+
+### Breaking
+- `EmptyIntentResult` is removed. An intent without a result implements `perform(context:) async throws` and its `PerformResult` is `Void`. To migrate, delete `typealias PerformResult = EmptyIntentResult` and `return EmptyIntentResult()`, and use `Void` where you wrote `EmptyIntentResult`, for example `IntentBinding<Void>`
+
+### Documentation
+- `onChange(of:trigger:)` documents that a new value cancels the run in flight and that a cancelled run is not reported as an error
+
 ## [1.0.0-beta.4] - 2026-11-23
 
 ### Fixed

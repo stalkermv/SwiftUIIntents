@@ -44,13 +44,10 @@ import SwiftUI
 import SwiftUIIntents
 
 struct SaveDraftIntent: Intent {
-    typealias PerformResult = EmptyIntentResult
-
     let message: String
 
-    func perform(context: Context) async throws -> EmptyIntentResult {
+    func perform(context: Context) async throws {
         try await DraftService.shared.save(message, locale: context.locale)
-        return EmptyIntentResult()
     }
 }
 
@@ -91,6 +88,9 @@ does not use `from: "1.0.0"`.
 
 `EmptyIntent`
 : An intent that does nothing. Useful in previews and as a placeholder.
+
+`DismissIntent`
+: Dismisses the sheet, popover or pushed screen the button is in, like `@Environment(\.dismiss)`.
 
 ## IntentPicker
 

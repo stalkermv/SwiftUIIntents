@@ -4,8 +4,8 @@ Build your first intent-driven flow.
 
 ## Define an intent
 
-Create a type that conforms to ``Intent`` and returns either a value or
-``EmptyIntentResult``.
+Create a type that conforms to ``Intent``. Implement `perform(context:)` with a
+return value, or without one when the intent only has side effects.
 
 ```swift
 struct LoadProfileIntent: Intent {
@@ -54,3 +54,8 @@ equatable value changes.
 Text("Search")
     .onChange(of: query, trigger: RefreshSearchIntent(query: query))
 ```
+
+The intent runs when the view appears and again each time the value changes. A
+new value cancels the run that is still in flight and starts a new one, so a
+slower, older run cannot overwrite the result of a newer one. A cancelled run is
+not reported as an error.

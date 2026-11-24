@@ -20,6 +20,10 @@ IntentButton(DeleteIntent(id: id)) {
 If the same error payload happens twice in a row, this modifier does not fire
 again until the stored error state changes.
 
+The handler is not called with `nil` when the view appears with nothing to
+report. It receives `nil` only when a previously reported error is cleared, for
+example when the intent runs again.
+
 ## Observe every failure event
 
 ``SwiftUICore/View/onReceiveIntentError(_:)`` emits every failure, even when

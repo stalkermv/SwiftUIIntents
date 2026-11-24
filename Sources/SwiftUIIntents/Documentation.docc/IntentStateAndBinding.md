@@ -47,7 +47,7 @@ This is useful when you want a custom control instead of ``IntentButton``:
 
 ```swift
 struct RetryButton: View {
-    let binding: IntentBinding<EmptyIntentResult>
+    let binding: IntentBinding<Void>
 
     var body: some View {
         Button(binding.isExecuting ? "Retrying..." : "Retry") {
