@@ -120,7 +120,7 @@ when an error that was reported is cleared.
 ```swift
 @State private var upload = IntentHandle<UploadIntent>()
 
-IntentButton(UploadIntent(file: file), handle: upload) { Text("Upload") }
+IntentButton(handle: upload, UploadIntent(file: file)) { Text("Upload") }
 Button("Cancel") { upload.cancel() }
 ```
 
