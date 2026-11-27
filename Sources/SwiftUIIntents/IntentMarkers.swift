@@ -58,7 +58,10 @@ public protocol ProgressReportingIntent: Intent {
 ///
 /// A run of a long-running intent is not cancelled when its view disappears.
 /// It runs in an app-scoped registry until it finishes, and ``IntentHandle/cancel()``
-/// can still stop it.
+/// can still stop it. A new run of the same trigger that replaces it, under
+/// ``IntentReentryPolicy/cancelAndRestart`` or for a new `task(id:)` or `onChange`
+/// value, cancels it too: the view is still there, and the old run is no longer
+/// wanted.
 ///
 /// - Important: After the view is gone, no `onChangeIntent…` or `onReceiveIntent…`
 ///   hook fires for the run, because those hooks need a mounted view. The marker

@@ -17,6 +17,10 @@ struct IntentEvent: Equatable {
     }
 
     let id = UUID()
+    /// The executor that emitted the event.
+    let source: UUID
+    /// The event's position among its executor's events, counting from 1.
+    let sequence: Int
     /// The intent's type, so a hook can filter by `of:`.
     let intentType: ObjectIdentifier
     /// The intent instance's identifier, for telling apart intents of one type.
@@ -41,23 +45,28 @@ struct IntentEventPreferenceKey: PreferenceKey {
 }
 
 /// Remembers which events a hook has already delivered.
+///
+/// An executor numbers its events in order and publishes its most recent ones
+/// again on every update, so the hook keeps, for each executor, the number of the
+/// last event it delivered. An event at or below that number was delivered
+/// already, however many events other executors published in between.
 @MainActor
 final class DeliveredIntentEvents {
-    private var delivered: Set<UUID> = []
-    private var order: [UUID] = []
+    private var lastDelivered: [UUID: Int] = [:]
 
     /// Returns the events that were not delivered before, in order, and marks them.
     func fresh(_ events: [IntentEvent]) -> [IntentEvent] {
         var result: [IntentEvent] = []
-        for event in events where !delivered.contains(event.id) {
-            delivered.insert(event.id)
-            order.append(event.id)
+        for event in events where event.sequence > lastDelivered[event.source, default: 0] {
+            lastDelivered[event.source] = event.sequence
             result.append(event)
         }
-        // Keep the set bounded; events older than this are long out of every trigger's window.
-        if order.count > 512 {
-            for id in order.prefix(order.count - 256) { delivered.remove(id) }
-            order.removeFirst(order.count - 256)
+        // An executor whose events are no longer published has left the view
+        // tree. Forget it once there are many, so the record stays bounded
+        // while every executor that still publishes keeps its entry.
+        if lastDelivered.count > 256 {
+            let publishing = Set(events.map(\.source))
+            lastDelivered = lastDelivered.filter { publishing.contains($0.key) }
         }
         return result
     }

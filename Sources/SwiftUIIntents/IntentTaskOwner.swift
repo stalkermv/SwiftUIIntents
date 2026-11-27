@@ -16,17 +16,27 @@ public enum IntentReentryPolicy: Sendable, Hashable {
     case queue
 }
 
-/// Owns the task of a trigger that SwiftUI does not own, such as `onSubmit`.
+/// Owns the tasks of a trigger that SwiftUI does not own, such as `onSubmit`.
 ///
-/// The task is cancelled when the owner is released, which happens when the view
-/// that holds it in `@State` leaves the hierarchy, and by ``cancel()``. A run of a
-/// ``LongRunningIntent`` is not affected by this: the executor does not pass the
-/// cancellation on to it.
+/// Every task the owner started and that has not finished yet, including runs
+/// waiting in the queue, is cancelled when the owner is released, which happens
+/// when the view that holds it in `@State` leaves the hierarchy, and by
+/// ``cancel()``. A queued run that is cancelled before its turn never starts.
+///
+/// A run of a ``LongRunningIntent`` that has already started is not stopped by
+/// this: the executor does not pass the cancellation of the view on to it. A new
+/// run that replaces it under ``IntentReentryPolicy/cancelAndRestart`` does stop
+/// it, because the executor cancels the run it supersedes.
 final class IntentTaskOwner: @unchecked Sendable {
     private let lock = NSLock()
-    private var task: Task<Void, Never>?
-    private var token = UUID()
-    private var isRunning = false
+    /// Every task that has not finished, in the order they were started.
+    private var tasks: [(token: UUID, task: Task<Void, Never>)] = []
+
+    /// Whether a task this owner started is still in flight or queued.
+    var isRunning: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return !tasks.isEmpty
+    }
 
     /// Starts `work` according to `policy`.
     @MainActor
@@ -35,44 +45,43 @@ final class IntentTaskOwner: @unchecked Sendable {
         _ work: @escaping @MainActor () async -> Void
     ) {
         lock.lock()
-        if policy == .ignore, isRunning {
+        if policy == .ignore, !tasks.isEmpty {
             lock.unlock()
             return
         }
-        let previous = policy == .queue ? task : nil
+        let previous = policy == .queue ? tasks.last?.task : nil
         if policy == .cancelAndRestart {
-            task?.cancel()
+            for entry in tasks { entry.task.cancel() }
         }
         let myToken = UUID()
-        token = myToken
-        isRunning = true
-        task = Task { @MainActor [weak self] in
+        let task = Task { @MainActor [weak self] in
             if let previous {
                 await previous.value
             }
-            await work()
+            // A run that was cancelled while it waited never starts.
+            if !Task.isCancelled {
+                await work()
+            }
             self?.finish(myToken)
         }
+        tasks.append((myToken, task))
         lock.unlock()
     }
 
     private func finish(_ finished: UUID) {
         lock.lock(); defer { lock.unlock() }
-        if token == finished {
-            isRunning = false
-            task = nil
-        }
+        tasks.removeAll { $0.token == finished }
     }
 
-    /// Cancels the run in flight.
+    /// Cancels every run in flight and every run waiting in the queue.
     func cancel() {
         lock.lock()
-        let current = task
+        let current = tasks.map(\.task)
         lock.unlock()
-        current?.cancel()
+        for task in current { task.cancel() }
     }
 
     deinit {
-        task?.cancel()
+        for entry in tasks { entry.task.cancel() }
     }
 }

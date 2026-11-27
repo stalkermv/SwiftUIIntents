@@ -54,6 +54,13 @@ private let intentLogger = Logger(
     private(set) var events: [IntentEvent] = []
     /// The latest run; an older run that finishes late must not overwrite it.
     private var currentRun = UUID()
+    /// The run in flight and how to cancel it. A new run cancels it, because the
+    /// new run supersedes it.
+    private var inFlight: (run: UUID, cancel: @MainActor () -> Void)?
+    /// Identifies this executor's events, so a hook can tell its events apart
+    /// from those of another executor.
+    private let eventSource = UUID()
+    private var eventSequence = 0
 
     init() {}
 
@@ -62,7 +69,14 @@ private let intentLogger = Logger(
         type: ObjectIdentifier,
         identifier: String
     ) {
-        events.append(IntentEvent(intentType: type, identifier: identifier, kind: kind))
+        eventSequence += 1
+        events.append(IntentEvent(
+            source: eventSource,
+            sequence: eventSequence,
+            intentType: type,
+            identifier: identifier,
+            kind: kind
+        ))
         if events.count > 32 {
             events.removeFirst(events.count - 32)
         }
@@ -73,6 +87,11 @@ private let intentLogger = Logger(
     /// The run is a separate task so that a handle can cancel exactly this run, and
     /// so that a ``LongRunningIntent`` can be left running when the task that
     /// called this method is cancelled because its view went away.
+    ///
+    /// A new run supersedes the run still in flight on this executor and cancels
+    /// it, a long-running one included: under `cancelAndRestart`, a new
+    /// `task(id:)` value or a new `onChange` value the old run is no longer wanted,
+    /// even though its view is still there.
     func perform(
         _ intent: any Intent<PerformResult>,
         context: IntentContextContainer,
@@ -95,6 +114,10 @@ private let intentLogger = Logger(
 
         let thisRun = UUID()
         currentRun = thisRun
+        if let superseded = inFlight {
+            inFlight = nil
+            superseded.cancel()
+        }
         state = .loading
         phase = .running
         latestErrorEvent = nil
@@ -113,13 +136,20 @@ private let intentLogger = Logger(
                 try await intent.perform(context: context)
             }
         }
-        handle?.bind { reason in
+        inFlight = (thisRun, {
+            box.record(.viewDisappeared)
+            run.cancel()
+        })
+        handle?.bind(run: thisRun) { reason in
             box.record(reason)
             run.cancel()
         }
         let registryID = isLongRunning ? LongRunningIntentRegistry.shared.register(identifier) : nil
         defer {
-            handle?.unbind()
+            // A newer run may have bound the handle and taken the in-flight slot
+            // while this one was finishing; leave those alone.
+            handle?.unbind(run: thisRun)
+            if inFlight?.run == thisRun { inFlight = nil }
             if let registryID { LongRunningIntentRegistry.shared.finish(registryID) }
         }
 
@@ -127,7 +157,8 @@ private let intentLogger = Logger(
             let result = try await withTaskCancellationHandler {
                 try await run.value
             } onCancel: {
-                // A long-running intent is not cancelled with its view.
+                // A long-running intent is not cancelled with its view. A run
+                // that supersedes it cancels it through `inFlight` instead.
                 if !isLongRunning { run.cancel() }
             }
             signposter.emitEvent("Execution complete.", id: signpostID)

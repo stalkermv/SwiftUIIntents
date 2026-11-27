@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Removing the view of an `onSubmit`, payload or `onChange` trigger cancels every run it started, including runs waiting under `.queue`; a queued run that is cancelled before its turn no longer starts
+- A new run that supersedes the one in flight (`cancelAndRestart`, a new `task(id:)` value, a new `onChange` value) cancels it even when the intent is a `LongRunningIntent`; a long-running run still outlives the removal of its view
+- An older run that finishes after its replacement has started no longer unbinds the `IntentHandle`, so `cancel()` keeps reaching the run in flight
+- The `onChangeIntent…` and `onReceiveIntent…` hooks no longer deliver an event twice when a busy trigger publishes many events next to a quiet one
+
 ## [2.0.0-beta.1] - 2026-11-24
 
 2.0 is a breaking release. The README has a migration table from 1.x.

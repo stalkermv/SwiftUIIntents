@@ -36,7 +36,8 @@ The overloads that take an intent sit next to SwiftUI's own closure forms.
 `onSubmit` and the payload triggers take an ``IntentReentryPolicy``:
 ``IntentReentryPolicy/ignore`` waits for the run to finish (the default for
 `onSubmit`), ``IntentReentryPolicy/cancelAndRestart`` stops it and starts the
-new one, ``IntentReentryPolicy/queue`` runs the new one afterwards.
+new one, ``IntentReentryPolicy/queue`` runs the new one afterwards. When the
+view goes away, the run in flight is cancelled and queued runs are dropped.
 
 ## Reading what happened
 

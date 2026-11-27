@@ -129,7 +129,8 @@ A cancelled run is not an error. Its phase is `.cancelled`.
 ## Intents that outlive the view
 
 An intent marked `LongRunningIntent` is not cancelled when its view goes away; it runs until
-it finishes, and the handle can still cancel it. Use it for mutations that must not be
+it finishes, and the handle can still cancel it. A new run of the same trigger that replaces
+it (`cancelAndRestart`, a new `task(id:)` or `onChange` value) does cancel it. Use it for mutations that must not be
 interrupted, such as saving a draft in `onDisappear`.
 
 ```swift
