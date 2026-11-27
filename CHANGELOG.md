@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `IntentCustomPicker` supporting single (`SelectionValue`), optional (`SelectionValue?`), and multiple (`Set<SelectionValue>`) `CustomPicker` selection
+
+### Fixed
+
+- Removing the view of an `onSubmit`, payload or `onChange` trigger cancels every run it started, including runs waiting under `.queue`; a queued run that is cancelled before its turn no longer starts
+- A new run that supersedes the one in flight (`cancelAndRestart`, a new `task(id:)` value, a new `onChange` value) cancels it even when the intent is a `LongRunningIntent`; a long-running run still outlives the removal of its view
+- An older run that finishes after its replacement has started no longer unbinds the `IntentHandle`, so `cancel()` keeps reaching the run in flight
+- The `onChangeIntent…` and `onReceiveIntent…` hooks no longer deliver an event twice when a busy trigger publishes many events next to a quiet one
+
+## [2.0.0-beta.1] - 2026-11-24
+
+2.0 is a breaking release. The README has a migration table from 1.x.
+
+### Breaking
+- `IntentState`, `IntentBinding` and `IntentButtonWrapper` are removed. `IntentButton(intent) { … }` replaces `IntentButton($binding) { … }`, and the result is read with `onChangeIntentValue(of:)`
+- `Intent` has one requirement, `perform(context:) async throws -> PerformResult`. An intent without a result implements it without a return value and its result is `Void`
+- `onChange(of:trigger:)` no longer runs when the view appears. It is now `onChange(of:initial:trigger:handle:)` with `initial: false`, like SwiftUI; pass `initial: true` for the old behaviour
+- `IntentButton` takes the intent first: `IntentButton(intent, role:, mode:, handle:) { … }`. A 1.x call that put `role:` or `mode:` before the intent must be reordered
+- `IntentPicker` has three initializers instead of eight: label closure, label value, and a current-value label
+- The minimum platforms are iOS 17, macOS 14, tvOS 17 and watchOS 10 (macOS and watchOS were 15 and 11); depends on CustomComponents `2.0.0-beta.5`
+
+### Added
+- Triggers that take an intent: `task(_:)`, `task(id:_:)`, `refreshable(_:)` (not tvOS), `onSubmit(of:policy:_:)`, and builders for `onOpenURL`, `onContinueUserActivity`, `fileImporter` and `fileExporter`
+- `IntentToggle`, which commits a toggle change by running an intent
+- `IntentReentryPolicy` (`ignore`, `cancelAndRestart`, `queue`) for triggers that can fire again while a run is in flight
+- Hooks: `onChangeIntentValue(of:)`, `onChangeIntentPhase`, `onChangeIntentProgress(of:)`, `onChangeIntentError(of:)` and `onReceiveIntentError(of:)`; the `of:` forms pass the intent's `identifier`
+- `IntentPhase` (`idle`, `running`, `failed`, `cancelled`, `finished`)
+- `IntentHandle`, which cancels the run of one trigger
+- Markers: `CancellableIntent` with `withIntentCancellationHandler`, `ProgressReportingIntent`, and `LongRunningIntent`, whose runs outlive their view; `onDisappear(_:)` accepts only a long-running intent
+
+### Changed
+- Every trigger runs through one executor that owns the run task, the phase and the events; a run that is superseded can no longer overwrite the newer run's state
+
+### Documentation
+- New guides for triggers and hooks and for long-running intents; the README lists what is covered, planned and not planned
+
 ## [1.0.0-beta.5] - 2026-11-24
 
 ### Added

@@ -48,6 +48,17 @@ newer run replaces it, the cancellation is not reported as an error. Neither
 modifier fires and the state returns to idle. Other errors are logged with
 `os.Logger` and published to both modifiers.
 
+## Filter by intent or by error type
+
+```swift
+.onChangeIntentError(of: DeleteIntent.self) { error, identifier in … }
+.onReceiveIntentError(of: NetworkError.self) { networkError in … }
+```
+
+The first receives the error of one intent type, with the intent's `identifier` so
+a list of fifty rows can tell them apart. The second receives only errors of one
+type and hands them over already cast.
+
 ## Several intents in one view
 
 When several buttons in the same view hierarchy report errors, an idle sibling

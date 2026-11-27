@@ -75,46 +75,6 @@ struct SwiftUIIntentsTests {
         #expect(value == "uk_UA")
     }
 
-    @Test("IntentBinding performs intents with service context")
-    func intentBindingPerformsWithServiceContext() async throws {
-        let executor = IntentExecutor<String>()
-        var environment = EnvironmentValues()
-        environment.locale = Locale(identifier: "uk_UA")
-        let binding = IntentBinding(
-            executor: executor,
-            intent: ContextAwareIntent(),
-            environment: environment
-        )
-
-        await binding.perform()
-
-        guard case .success(let value) = executor.state else {
-            Issue.record("Expected success state")
-            return
-        }
-
-        #expect(value == "uk_UA")
-    }
-
-    @Test("IntentBinding can perform a supplied dynamic intent")
-    func intentBindingPerformsSuppliedIntent() async throws {
-        let executor = IntentExecutor<String>()
-        let binding = IntentBinding<String>(
-            executor: executor,
-            intent: nil,
-            environment: EnvironmentValues()
-        )
-
-        await binding.perform(ConstantIntent(value: "dynamic"))
-
-        guard case .success(let value) = executor.state else {
-            Issue.record("Expected success state")
-            return
-        }
-
-        #expect(value == "dynamic")
-    }
-
     @Test("IntentPicker overloads compile")
     func intentPickerOverloadsCompile() {
         let selection = "automatic"
@@ -124,11 +84,53 @@ struct SwiftUIIntentsTests {
         }
 
         if #available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *) {
-            _ = IntentPicker(selection, { _ in ConstantIntent(value: "done") }, label: Text("Mode")) {
+            _ = IntentPicker(selection, { _ in ConstantIntent(value: "done") }) {
                 Text("Automatic").tag("automatic")
+            } label: {
+                Text("Mode")
             } currentValueLabel: {
                 Text("Automatic")
             }
+        }
+    }
+
+    @Test("IntentCustomPicker overloads resolve single, optional, and multiple selection")
+    func intentCustomPickerOverloadsCompile() {
+        let single = "automatic"
+        let optional: String? = "automatic"
+        let multiple: Set<String> = ["automatic"]
+
+        _ = IntentCustomPicker(single, { value in
+            let _: String = value
+            return ConstantIntent(value: value)
+        }) {
+            Text("Automatic").tag("automatic")
+        }
+
+        _ = IntentCustomPicker(optional, { value in
+            let _: String? = value
+            return ConstantIntent(value: value ?? "")
+        }) {
+            Text("Automatic").tag("automatic")
+        }
+
+        _ = IntentCustomPicker(multiple, { value in
+            let _: Set<String> = value
+            return ConstantIntent(value: "\(value.count)")
+        }) {
+            Text("Automatic").tag("automatic")
+        }
+
+        _ = IntentCustomPicker(optional, { _ in ConstantIntent(value: "done") }, label: Text("Mode")) {
+            Text("Automatic").tag("automatic")
+        }
+
+        _ = IntentCustomPicker(optional, { _ in ConstantIntent(value: "done") }) {
+            Text("Automatic").tag("automatic")
+        } label: {
+            Text("Mode")
+        } currentValueLabel: {
+            Text("Automatic")
         }
     }
 
@@ -200,7 +202,7 @@ struct SwiftUIIntentsTests {
         #expect(recorder.changedErrors == [SampleError.sameMessage.localizedDescription])
     }
 
-    @Test("onChange(of:trigger:) executes when observed input changes")
+    @Test("onChange(of:initial:trigger:) runs on appear only with initial, and again on change")
     func onChangeTriggerExecutesIntent() async throws {
         let model = TriggerModel()
         let recorder = TriggerRecorder()
@@ -287,7 +289,7 @@ private struct TriggerHarness: View {
 
     var body: some View {
         Text("Trigger \(model.value)")
-            .onChange(of: model.value, trigger: CountingIntent(recorder: recorder))
+            .onChange(of: model.value, initial: true, trigger: CountingIntent(recorder: recorder))
     }
 }
 
@@ -488,156 +490,43 @@ struct PreferenceReduceTests {
 }
 
 @MainActor
-private final class ExecutorIdentityRecorder {
-    var seen: [ObjectIdentifier] = []
-    var latestValues: [String?] = []
-}
-
-@MainActor
 private final class ReRenderTick: ObservableObject {
     @Published var value = 0
 }
 
-// The probe must be RECONSTRUCTED by a parent, not merely re-evaluated.
-// C1 lives in `IntentState.init`: `@Bindable` has no SwiftUI storage, so a new
-// executor appears each time the enclosing view value is built. If the probe is
-// the host's root view and observes the tick itself, SwiftUI re-runs its `body`
-// on the existing value, `init` never runs again, and the bug does not appear —
-// the test would pass against the very code it is meant to catch.
 @MainActor
-private struct ExecutorIdentityProbe: View {
-    let tick: Int
-    let recorder: ExecutorIdentityRecorder
-    @IntentState private var result: String?
-
-    init(tick: Int, recorder: ExecutorIdentityRecorder) {
-        self.tick = tick
-        self.recorder = recorder
-        self._result = IntentState(ConstantIntent(value: "done"))
-    }
-
-    var body: some View {
-        recorder.seen.append($result.executorIdentity)
-        recorder.latestValues.append(result)
-        return Text("tick \(tick)")
-    }
-}
-
-@MainActor
-private struct ExecutorIdentityParent: View {
+private struct TriggerLifetimeParent: View {
     @ObservedObject var tick: ReRenderTick
-    let recorder: ExecutorIdentityRecorder
+    let recorder: TriggerRecorder
 
     var body: some View {
-        // Rebuilt on every evaluation of this body — the real-world shape.
-        ExecutorIdentityProbe(tick: tick.value, recorder: recorder)
+        // The child is rebuilt on every evaluation of this body, the real-world
+        // shape. Its trigger state has to live in SwiftUI storage, not in the value.
+        Text("tick \(tick.value)")
+            .onChange(of: "stable", initial: true, trigger: CountingIntent(recorder: recorder))
     }
 }
 
 @MainActor
-struct ExecutorLifetimeTests {
-    @Test("The executor survives a parent re-render")
-    func executorSurvivesReRender() async throws {
+struct TriggerLifetimeTests {
+    @Test("A trigger keeps its state when the parent rebuilds it")
+    func triggerStateSurvivesParentRebuild() async throws {
         let tick = ReRenderTick()
-        let recorder = ExecutorIdentityRecorder()
+        let recorder = TriggerRecorder()
 
-        await withHostedView(ExecutorIdentityParent(tick: tick, recorder: recorder)) { handle in
+        await withHostedView(TriggerLifetimeParent(tick: tick, recorder: recorder)) { handle in
+            let ranOnce = await renderUntil(handle) { recorder.count == 1 }
+            #expect(ranOnce, "the trigger never ran on appear with initial: true")
+
             for i in 1...3 {
                 tick.value = i
                 await handle.render()
             }
+
+            // If the trigger's state were rebuilt with the view, `initial: true`
+            // would run the intent again after each rebuild.
+            #expect(recorder.count == 1, "the intent ran \(recorder.count) times across rebuilds")
         }
-
-        #expect(recorder.seen.count >= 2, "need at least two renders to compare")
-        #expect(
-            Set(recorder.seen).count == 1,
-            "the executor was rebuilt \(Set(recorder.seen).count) times across \(recorder.seen.count) renders"
-        )
-    }
-
-    @Test("The latest result survives a parent re-render")
-    func resultSurvivesReRender() async throws {
-        let tick = ReRenderTick()
-        let recorder = ExecutorIdentityRecorder()
-        let performed = PerformGate()
-
-        await withHostedView(
-            ResultSurvivalParent(tick: tick, recorder: recorder, gate: performed)
-        ) { handle in
-            // Run the intent once, so there is a result to lose.
-            await performed.runOnce()
-            await handle.render()
-
-            let afterRun = recorder.latestValues.last ?? nil
-            #expect(afterRun == "done", "the intent should have produced a result; got \(String(describing: afterRun))")
-
-            // Now make the parent rebuild the child.
-            let renderedBefore = recorder.latestValues.count
-            tick.value = 1
-            await handle.render()
-
-            // Without this the assertion below could re-read the very element the
-            // one above already checked and pass having exercised nothing — the
-            // guard `executorSurvivesReRender` gets from its `seen.count >= 2`.
-            #expect(
-                recorder.latestValues.count > renderedBefore,
-                "the child was never rebuilt; this test proves nothing"
-            )
-
-            // Asserted inside the closure, while the host is still mounted. After
-            // `withHostedView` returns the recorder can gain no further entry, so
-            // a torn-down host would quietly hide a regression here.
-            let afterReRender = recorder.latestValues.last ?? nil
-            #expect(
-                afterReRender == "done",
-                "the result did not survive the parent re-render; got \(String(describing: afterReRender))"
-            )
-        }
-    }
-}
-
-/// Lets the test trigger one execution through the binding, which is the
-/// supported path — production code never calls `perform` on an intent.
-@MainActor
-private final class PerformGate {
-    var run: (() async -> Void)?
-
-    func runOnce() async {
-        await run?()
-    }
-}
-
-@MainActor
-private struct ResultSurvivalProbe: View {
-    let tick: Int
-    let recorder: ExecutorIdentityRecorder
-    let gate: PerformGate
-    @IntentState private var result: String?
-
-    init(tick: Int, recorder: ExecutorIdentityRecorder, gate: PerformGate) {
-        self.tick = tick
-        self.recorder = recorder
-        self.gate = gate
-        self._result = IntentState(ConstantIntent(value: "done"))
-    }
-
-    var body: some View {
-        recorder.seen.append($result.executorIdentity)
-        recorder.latestValues.append(result)
-        let binding = $result
-        gate.run = { await binding.perform() }
-        return Text("tick \(tick)")
-    }
-}
-
-@MainActor
-private struct ResultSurvivalParent: View {
-    @ObservedObject var tick: ReRenderTick
-    let recorder: ExecutorIdentityRecorder
-    let gate: PerformGate
-
-    var body: some View {
-        ResultSurvivalProbe(tick: tick.value, recorder: recorder, gate: gate)
     }
 }
 
@@ -647,24 +536,17 @@ private final class ButtonErrorRecorder {
     var receivedErrors: [String] = []
 }
 
-/// Two `IntentButton`s side by side — the shape the sibling-erasure defect
-/// actually appears in, and the one `IntentButtonWrapper.body` is only exercised
-/// by when it is really mounted.
-///
-/// The failing button is built on a binding the test owns, so the test can drive
-/// exactly what the button's own action does. The other is never touched: it
-/// stays idle, publishes nothing to either preference key, and must not erase
-/// its sibling's failure as SwiftUI folds the two children.
+/// A failing trigger next to an idle `IntentButton`, the shape the sibling-erasure
+/// defect appears in. The idle button publishes nothing to either preference key
+/// and must not erase its sibling's failure as SwiftUI folds the two children.
 @MainActor
-private struct TwoButtonHarness: View {
-    let failingBinding: IntentBinding<String>
+private struct TwoTriggerHarness: View {
     let recorder: ButtonErrorRecorder
 
     var body: some View {
         HStack {
-            IntentButton(failingBinding) {
-                Text("fail")
-            }
+            Text("fail")
+                .onChange(of: "stable", initial: true, trigger: FailingIntent())
             IntentButton(ConstantIntent(value: "ok")) {
                 Text("idle")
             }
@@ -681,10 +563,6 @@ private struct TwoButtonHarness: View {
 }
 
 /// Renders until `condition` holds, or the deadline passes.
-///
-/// Preference delivery is asynchronous: publishing a new value schedules the
-/// `onPreferenceChange` callback rather than running it inline, so a test has to
-/// keep pumping the host rather than assert straight after the mutation.
 @MainActor
 private func renderUntil(
     _ handle: HostedHandle,
@@ -706,33 +584,16 @@ private func renderUntil(
 
 @MainActor
 struct IntentButtonTests {
-    @Test("A failing IntentButton reports its error past an idle sibling")
-    func failingButtonReportsErrorPastIdleSibling() async throws {
-        let executor = IntentExecutor<String>()
-        let binding = IntentBinding<String>(
-            executor: executor,
-            intent: FailingIntent(),
-            environment: EnvironmentValues()
-        )
+    @Test("A failing trigger reports its error past an idle IntentButton sibling")
+    func failingTriggerReportsErrorPastIdleSibling() async throws {
         let recorder = ButtonErrorRecorder()
 
-        await withHostedView(
-            TwoButtonHarness(failingBinding: binding, recorder: recorder)
-        ) { handle in
-            #expect(recorder.changedErrors.isEmpty, "nothing has failed yet")
-            #expect(recorder.receivedErrors.isEmpty, "nothing has failed yet")
-
-            // `IntentButtonWrapper`'s action is `await intentBinding.perform()`.
-            // Driving the same binding runs precisely that, without reaching
-            // inside AsyncButton to synthesise a tap — which the harness
-            // deliberately has no way to do.
-            await binding.perform()
-
+        await withHostedView(TwoTriggerHarness(recorder: recorder)) { handle in
             let arrived = await renderUntil(handle) {
                 !recorder.changedErrors.isEmpty && !recorder.receivedErrors.isEmpty
             }
 
-            #expect(arrived, "the failing button's error never reached the handler on the container")
+            #expect(arrived, "the failing trigger's error never reached the handlers on the container")
             #expect(
                 recorder.changedErrors == [SampleError.sameMessage.localizedDescription],
                 "onChangeIntentError saw \(recorder.changedErrors)"
@@ -746,22 +607,47 @@ struct IntentButtonTests {
 }
 
 private final class RawErrorRecorder {
-    /// Every value `onChangeIntentError` delivered; `nil` is `.some(nil)`'s
-    /// absence, so a delivered `nil` appears as the string "nil".
+    /// Every value `onChangeIntentError` delivered; a delivered `nil` is "nil".
     var calls: [String] = []
 }
 
-private struct SingleButtonHarness: View {
-    let binding: IntentBinding<String>
+private struct ToggledIntent: Intent {
+    let fails: Bool
+
+    func perform(context: Context) async throws -> String {
+        if fails {
+            throw SampleError.sameMessage
+        }
+        return "ok"
+    }
+}
+
+private struct ErrorTriggerHarness: View {
+    let tick: Int
+    let failsFirst: Bool
     let recorder: RawErrorRecorder
 
     var body: some View {
-        IntentButton(binding) {
-            Text("run")
-        }
-        .onChangeIntentError { error in
-            recorder.calls.append(error?.localizedDescription ?? "nil")
-        }
+        Text("run")
+            .onChange(of: tick, initial: true, trigger: ToggledIntent(fails: failsFirst && tick == 0))
+            .onChangeIntentError { error in
+                recorder.calls.append(error?.localizedDescription ?? "nil")
+            }
+    }
+}
+
+@MainActor
+private final class TickModel: ObservableObject {
+    @Published var tick = 0
+}
+
+private struct ErrorTriggerParent: View {
+    @ObservedObject var model: TickModel
+    let failsFirst: Bool
+    let recorder: RawErrorRecorder
+
+    var body: some View {
+        ErrorTriggerHarness(tick: model.tick, failsFirst: failsFirst, recorder: recorder)
     }
 }
 
@@ -769,15 +655,11 @@ private struct SingleButtonHarness: View {
 struct ChangeIntentErrorTests {
     @Test("onChangeIntentError is not called with nil when the view appears")
     func noNilOnAppear() async {
-        let executor = IntentExecutor<String>()
-        let binding = IntentBinding<String>(
-            executor: executor,
-            intent: ConstantIntent(value: "ok"),
-            environment: EnvironmentValues()
-        )
+        let model = TickModel()
         let recorder = RawErrorRecorder()
 
-        await withHostedView(SingleButtonHarness(binding: binding, recorder: recorder)) { handle in
+        await withHostedView(ErrorTriggerParent(model: model, failsFirst: false, recorder: recorder)) { handle in
+            await handle.render()
             await handle.render()
             #expect(recorder.calls.isEmpty, "the handler ran on appear with \(recorder.calls)")
         }
@@ -785,22 +667,15 @@ struct ChangeIntentErrorTests {
 
     @Test("onChangeIntentError reports an error and then reports it cleared")
     func reportsErrorThenClear() async {
-        let executor = IntentExecutor<String>()
-        let binding = IntentBinding<String>(
-            executor: executor,
-            intent: FailingIntent(),
-            environment: EnvironmentValues()
-        )
+        let model = TickModel()
         let recorder = RawErrorRecorder()
-        let context = IntentContextContainer(environment: EnvironmentValues())
 
-        await withHostedView(SingleButtonHarness(binding: binding, recorder: recorder)) { handle in
-            await binding.perform()
+        await withHostedView(ErrorTriggerParent(model: model, failsFirst: true, recorder: recorder)) { handle in
             let failed = await renderUntil(handle) { !recorder.calls.isEmpty }
             #expect(failed)
             #expect(recorder.calls == [SampleError.sameMessage.localizedDescription])
 
-            await executor.perform(ConstantIntent(value: "ok"), context: context)
+            model.tick = 1
             let cleared = await renderUntil(handle) { recorder.calls.count == 2 }
             #expect(cleared)
             #expect(recorder.calls == [SampleError.sameMessage.localizedDescription, "nil"])

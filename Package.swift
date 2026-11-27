@@ -5,12 +5,12 @@ import PackageDescription
 
 let package = Package(
     name: "SwiftUIIntents",
-    platforms: [.iOS(.v17), .macOS(.v15), .tvOS(.v17), .watchOS(.v11)],
+    platforms: [.iOS(.v17), .macOS(.v14), .tvOS(.v17), .watchOS(.v10)],
     products: [
         .library(name: "SwiftUIIntents", targets: ["SwiftUIIntents"])
     ],
     dependencies: [
-        .package(url: "https://github.com/stalkermv/CustomComponents.git", from: "2.0.0-beta.2"),
+        .package(url: "https://github.com/stalkermv/CustomComponents.git", from: "2.0.0-beta.5"),
         .package(url: "https://github.com/apple/swift-service-context.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.4.0"),
         .package(url: "https://github.com/nalexn/ViewInspector.git", from: "0.10.3"),

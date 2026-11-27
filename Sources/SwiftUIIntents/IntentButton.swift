@@ -19,268 +19,126 @@ public enum IntentButtonMode {
     case remove
 }
 
-/// A button wrapper that executes an intent and exposes its execution state to the label.
-public struct IntentButton<Content, PerformResult>: View
-where Content: View, PerformResult: Sendable {
-    
-    @IntentState private var result: PerformResult?
-    
-    private let content: (IntentBinding<PerformResult>) -> Content
-    
-    /// Builds the content using the current `IntentBinding`.
-    public var body: some View {
-        content($result)
-    }
-    
-    /// Creates an intent button from an optional intent value.
-    public init<T, Label>(
-        role: ButtonRole? = nil,
-        mode: IntentButtonMode = .disable,
-        _ intent: T?,
-        @ViewBuilder label: @escaping () -> Label
-    ) where Content == IntentButtonWrapper<Label, PerformResult>, T: Intent, T.PerformResult == PerformResult {
-        self._result = IntentState(intent)
-        self.content = { binding in
-            IntentButtonWrapper(role: role, mode: mode, binding, label: label)
-        }
-    }
-}
+/// A button that runs an intent and reports its progress through the environment
+/// and the intent hooks.
+///
+/// ```swift
+/// IntentButton(SaveDraftIntent(message: message)) {
+///     Text("Save")
+/// }
+/// ```
+///
+/// While the intent runs the button disables itself, and `isLoading` is `true` in
+/// the label's environment, so the label or a `ButtonStyle` draws the progress
+/// indicator. The button does not draw one. Errors reach `onChangeIntentError` and
+/// `onReceiveIntentError`. When the button is removed from the view hierarchy the
+/// run is cancelled, unless the intent is a ``LongRunningIntent``.
+public struct IntentButton<I: Intent, Label: View>: View {
+    private let role: ButtonRole?
+    private let mode: IntentButtonMode
+    private let intent: I?
+    private let handle: IntentHandle<I>?
+    private let label: () -> Label
 
-extension IntentButton {
-    /// Creates an intent button from a non-optional intent value.
-    public init<T, Label>(
-        role: ButtonRole? = nil,
-        mode: IntentButtonMode = .disable,
-        _ intent: T,
-        @ViewBuilder label: @escaping () -> Label
-    ) where Content == IntentButtonWrapper<Label, PerformResult>, T: Intent, T.PerformResult == PerformResult {
-        self.init(role: role, mode: mode, intent as Optional<T>, label: label)
-    }
-}
+    @State private var executor = IntentExecutor<I.PerformResult>()
+    @Environment(\.self) private var environment
 
-extension IntentButton {
-    /// Creates an intent button backed by an existing `IntentBinding`.
-    public init<Label>(
-        role: ButtonRole? = nil,
-        mode: IntentButtonMode = .disable,
-        _ binding: IntentBinding<PerformResult>,
-        @ViewBuilder label: @escaping () -> Label
-    ) where Content == IntentButtonWrapper<Label, PerformResult> {
-        self._result = IntentState(PerformResult.self)
-        self.content = { _ in
-            IntentButtonWrapper(role: role, mode: mode, binding, label: label)
-        }
-    }
-}
-
-/// The concrete view that renders and drives the underlying async button.
-public struct IntentButtonWrapper<Content: View, PerformResult: Sendable> : View {
-    
-    let buttonRole: ButtonRole?
-    let buttonMode: IntentButtonMode
-    let label: () -> Content
-    
-    let intentBinding: IntentBinding<PerformResult>
-    
-    /// Creates a wrapper around a previously prepared `IntentBinding`.
-    public init(
-        role: ButtonRole?,
-        mode: IntentButtonMode,
-        _ intentBinding: IntentBinding<PerformResult>,
-        @ViewBuilder label: @escaping () -> Content
-    ) {
-        self.buttonRole = role
-        self.buttonMode = mode
-        self.intentBinding = intentBinding
-        self.label = label
-    }
-    
-    public var body: some View {
-        AsyncButton(role: buttonRole, action: action, label: label)
-            .disabled(intentBinding.intent == nil)
-            .hidden(
-                intentBinding.intent == nil && buttonMode != .disable,
-                remove: buttonMode == .remove
-            )
-            .preference(
-                key: IntentErrorPreferenceKey.self,
-                value: .init(intentBinding.error)
-            )
-            .preference(
-                key: IntentErrorEventPreferenceKey.self,
-                value: intentBinding.errorEvent
-            )
-    }
-    
-    private func action() async {
-        await intentBinding.perform()
-    }
-}
-
-
-
-extension View {
-
-    /// Hide or show the view based on a boolean value.
-    ///
-    /// Example for visibility:
-    ///
-    ///     Text("Label")
-    ///         .hidden(true)
-    ///
-    /// Example for complete removal:
-    ///
-    ///     Text("Label")
-    ///         .hidden(true, remove: true)
+    /// Creates a button that runs `intent` when it is pressed.
     ///
     /// - Parameters:
-    ///   - hidden: Set to `false` to show the view. Set to `true` to hide the view.
-    ///   - remove: Boolean value indicating whether or not to remove the view.
-    func hidden(
-        _ isHidden: Bool,
-        transition: AnyTransition = .identity,
-        remove: Bool = false
-    ) -> some View {
-        modifier(
-            HiddenModifier(
-                isHidden: isHidden,
-                transition: transition,
-                remove: remove
-            )
-        )
-    }
-}
-
-private struct HiddenModifier: ViewModifier {
-
-    private var isHidden: Bool
-    private var remove: Bool
-    private var transition: AnyTransition
-
-    init(
-        isHidden: Bool,
-        transition: AnyTransition = .opacity,
-        remove: Bool = false
+    ///   - intent: The intent to run, or `nil` when there is nothing to run.
+    ///   - role: The button's role.
+    ///   - mode: What the button does when `intent` is `nil`.
+    ///   - handle: A handle that can cancel the run.
+    ///   - label: The button's label.
+    public init(
+        _ intent: I?,
+        role: ButtonRole? = nil,
+        mode: IntentButtonMode = .disable,
+        handle: IntentHandle<I>? = nil,
+        @ViewBuilder label: @escaping () -> Label
     ) {
-        self.isHidden = isHidden
-        self.transition = transition
-        self.remove = remove
+        self.role = role
+        self.mode = mode
+        self.handle = handle
+        self.intent = intent
+        self.label = label
     }
 
-    func body(content: Content) -> some View {
-        if isHidden {
-            if !remove {
-                content.hidden()
-            }
-        } else {
-            content
-                .transition(transition)
+    public var body: some View {
+        AsyncButton(role: role, action: run, label: label)
+            .disabled(intent == nil)
+            .hidden(intent == nil && mode != .disable, remove: mode == .remove)
+            .intentReporting(executor, publishesLoading: false)
+    }
+
+    private func run() async {
+        guard let intent else {
+            return
         }
+
+        await executor.perform(
+            intent,
+            context: IntentContextContainer(environment: environment),
+            handle: handle
+        )
     }
 }
 
 extension View {
-    /// Performs an intent whenever the supplied equatable value changes.
+    /// Runs an intent when the view appears and again whenever the supplied
+    /// equatable value changes.
     ///
-    /// The intent runs once when the view appears and again each time `equatable`
-    /// changes. A new value cancels the run that is still in flight and starts a
-    /// new one, so an older, slower run cannot overwrite the result of a newer
-    /// one. A cancelled run is not reported as a failure.
-    public func onChange<T>(of equatable: T?, trigger intent: (some Intent)?) -> some View
-    where T: Equatable {
-        let modifier = OnChangeIntentModifier(
-            equatable: equatable,
-            intent: intent
+    /// A new value cancels the run that is still in flight and starts a new one, so
+    /// an older, slower run cannot overwrite the result of a newer one. A cancelled
+    /// run is not reported as an error. Removing the view cancels the run too.
+    ///
+    /// - Parameters:
+    ///   - equatable: The value to watch.
+    ///   - initial: Whether to run when the view appears. The default is `false`,
+    ///     like SwiftUI's `onChange`.
+    ///   - intent: The intent to run, or `nil`.
+    ///   - handle: A handle that can cancel the run.
+    public func onChange<T, I>(
+        of equatable: T?,
+        initial: Bool = false,
+        trigger intent: I?,
+        handle: IntentHandle<I>? = nil
+    ) -> some View where T: Equatable, I: Intent {
+        modifier(
+            OnChangeIntentModifier(
+                equatable: equatable,
+                initial: initial,
+                intent: intent,
+                handle: handle
+            )
         )
-        
-        return self.modifier(modifier)
     }
 }
 
 struct OnChangeIntentModifier<T, I>: ViewModifier
 where T: Equatable, I: Intent {
-    
     let equatable: T?
+    let initial: Bool
     let intent: I?
-    
-    @IntentState(I.PerformResult.self)
-    private var intentState
-    
-    init(equatable: T?, intent: I?) {
-        self.equatable = equatable
-        self.intent = intent
-        
-        _intentState = IntentState(intent)
-    }
-    
+    let handle: IntentHandle<I>?
+
+    @State private var executor = IntentExecutor<I.PerformResult>()
+    @State private var owner = IntentTaskOwner()
+    @Environment(\.self) private var environment
+
     func body(content: Content) -> some View {
         content
-            .task(id: equatable) {
-                await $intentState.perform()
+            .onChange(of: equatable, initial: initial) {
+                guard let intent else {
+                    return
+                }
+
+                let context = IntentContextContainer(environment: environment)
+                owner.start(policy: .cancelAndRestart) { [executor, handle] in
+                    await executor.perform(intent, context: context, handle: handle)
+                }
             }
-            .environment(\.isLoading, $intentState.isExecuting)
-            .preference(
-                key: IntentErrorPreferenceKey.self,
-                value: .init($intentState.error)
-            )
-            .preference(
-                key: IntentErrorEventPreferenceKey.self,
-                value: $intentState.errorEvent
-            )
-    }
-}
-
-extension Intent {
-    /// Returns a new intent that executes `self` and then `other`.
-    public func combined<T: Intent>(with other: T) -> CombinedIntent<Self, T> {
-        CombinedIntent(self, other)
-    }
-    
-    /// Returns a new intent that executes `self` and `other` concurrently.
-    public func combined<T: Intent>(simultaneously other: T) -> SimultaneousCombinedIntent<Self, T> {
-        SimultaneousCombinedIntent(self, other)
-    }
-}
-
-/// An intent that runs two intents concurrently and returns both results.
-public struct SimultaneousCombinedIntent<I1: Intent, I2: Intent>: Intent {
-    
-    public typealias PerformResult = (I1.PerformResult, I2.PerformResult)
-    
-    let first: I1
-    let second: I2
-    
-    init(_ first: I1, _ second: I2) {
-        self.first = first
-        self.second = second
-    }
- 
-    /// Executes both wrapped intents concurrently.
-    public func perform(context: Context) async throws -> PerformResult {
-        async let firstResult: I1.PerformResult = try await first.perform(context: context)
-        async let secondResult: I2.PerformResult = try await second.perform(context: context)
-        
-        return (try await firstResult, try await secondResult)
-    }
-}
-
-/// An intent that runs two intents sequentially and returns both results.
-public struct CombinedIntent<I1: Intent, I2: Intent>: Intent {
-    
-    public typealias PerformResult = (I1.PerformResult, I2.PerformResult)
-    
-    let first: I1
-    let second: I2
-    
-    init(_ first: I1, _ second: I2) {
-        self.first = first
-        self.second = second
-    }
- 
-    /// Executes the wrapped intents in order.
-    public func perform(context: Context) async throws -> PerformResult {
-        let firstResult: I1.PerformResult = try await first.perform(context: context)
-        let secondResult: I2.PerformResult = try await second.perform(context: context)
-        return (firstResult, secondResult)
+            .intentReporting(executor)
     }
 }

@@ -27,35 +27,34 @@ IntentButton(LoadProfileIntent(userID: user.id)) {
 }
 ```
 
-## Store results in view state
+## Read the result
 
-Use ``IntentState`` when the view needs to keep the latest result.
+Observe what an intent produces with a hook on a view above the trigger:
 
 ```swift
-@IntentState(LoadProfileIntent(userID: user.id)) private var profileName: String?
-
-var body: some View {
-    VStack {
-        Text(profileName ?? "Unknown")
-
-        IntentButton($profileName) {
-            Text($profileName.isExecuting ? "Reloading..." : "Reload")
-        }
-    }
+IntentButton(LoadProfileIntent(userID: user.id)) {
+    Text("Reload")
+}
+.onChangeIntentValue(of: LoadProfileIntent.self) { name, _ in
+    profileName = name
 }
 ```
 
+The button disables itself while the intent runs and sets `isLoading` in the
+environment, so the label or the `ButtonStyle` can draw a progress indicator.
+
 ## Trigger from state changes
 
-Use ``SwiftUICore/View/onChange(of:trigger:)`` to run an intent when an
+Use ``SwiftUICore/View/onChange(of:initial:trigger:handle:)`` to run an intent when an
 equatable value changes.
 
 ```swift
 Text("Search")
-    .onChange(of: query, trigger: RefreshSearchIntent(query: query))
+    .onChange(of: query, trigger: RefreshSearchIntent(query: query))   // add initial: true to run on appear
 ```
 
-The intent runs when the view appears and again each time the value changes. A
+The intent runs each time the value changes, and on appear when you pass
+`initial: true`. A
 new value cancels the run that is still in flight and starts a new one, so a
 slower, older run cannot overwrite the result of a newer one. A cancelled run is
 not reported as an error.
