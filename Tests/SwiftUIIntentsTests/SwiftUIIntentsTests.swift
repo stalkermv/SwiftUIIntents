@@ -94,6 +94,46 @@ struct SwiftUIIntentsTests {
         }
     }
 
+    @Test("IntentCustomPicker overloads resolve single, optional, and multiple selection")
+    func intentCustomPickerOverloadsCompile() {
+        let single = "automatic"
+        let optional: String? = "automatic"
+        let multiple: Set<String> = ["automatic"]
+
+        _ = IntentCustomPicker(single, { value in
+            let _: String = value
+            return ConstantIntent(value: value)
+        }) {
+            Text("Automatic").tag("automatic")
+        }
+
+        _ = IntentCustomPicker(optional, { value in
+            let _: String? = value
+            return ConstantIntent(value: value ?? "")
+        }) {
+            Text("Automatic").tag("automatic")
+        }
+
+        _ = IntentCustomPicker(multiple, { value in
+            let _: Set<String> = value
+            return ConstantIntent(value: "\(value.count)")
+        }) {
+            Text("Automatic").tag("automatic")
+        }
+
+        _ = IntentCustomPicker(optional, { _ in ConstantIntent(value: "done") }, label: Text("Mode")) {
+            Text("Automatic").tag("automatic")
+        }
+
+        _ = IntentCustomPicker(optional, { _ in ConstantIntent(value: "done") }) {
+            Text("Automatic").tag("automatic")
+        } label: {
+            Text("Mode")
+        } currentValueLabel: {
+            Text("Automatic")
+        }
+    }
+
     @Test("Repeated equal errors stay equal for change-based observation")
     func changeBasedErrorObservationCoalescesEqualErrors() {
         let first = IntentErrorPreferenceKey.EquatableError(SampleError.sameMessage)

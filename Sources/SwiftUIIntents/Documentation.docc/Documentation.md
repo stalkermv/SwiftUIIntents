@@ -54,6 +54,7 @@ struct ComposerView: View {
 
 - ``IntentButton``
 - ``IntentPicker``
+- ``IntentCustomPicker``
 - ``IntentToggle``
 - ``IntentReentryPolicy``
 - ``SwiftUICore/View/onChange(of:initial:trigger:handle:)``

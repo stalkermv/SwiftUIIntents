@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `IntentCustomPicker` supporting single (`SelectionValue`), optional (`SelectionValue?`), and multiple (`Set<SelectionValue>`) `CustomPicker` selection
+
 ### Fixed
 
 - Removing the view of an `onSubmit`, payload or `onChange` trigger cancels every run it started, including runs waiting under `.queue`; a queued run that is cancelled before its turn no longer starts

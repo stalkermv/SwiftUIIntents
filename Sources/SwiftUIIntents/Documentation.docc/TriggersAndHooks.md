@@ -5,8 +5,8 @@ Run an intent from a view, and read what happened from the views above it.
 ## Triggers
 
 Every trigger runs an intent from a view and cancels the run when the view is
-removed. ``IntentButton`` and ``IntentPicker`` disable themselves while the
-intent runs.
+removed. ``IntentButton``, ``IntentPicker`` and ``IntentCustomPicker`` disable
+themselves while the intent runs.
 
 ```swift
 IntentButton(SaveDraftIntent(message: message)) { Text("Save") }

@@ -13,7 +13,7 @@ Typed async intents for SwiftUI views, buttons, and state-driven workflows.
 - Keep environment access explicit through `IntentContext`
 - Observe errors, results, phases and progress with `onChangeIntent…` and `onReceiveIntent…` hooks
 - Cancel a run with a handle, or let a `LongRunningIntent` outlive its view
-- Commit a `Picker` selection by running an intent with `IntentPicker`
+- Commit a `Picker` selection by running an intent with `IntentPicker`, or a `CustomPicker` selection with `IntentCustomPicker`
 
 ## Requirements
 
@@ -78,6 +78,7 @@ Every trigger runs an intent from a view and cancels the run when the view is re
 |---|---|
 | `IntentButton(intent) { label }` | Run an intent when the button is pressed |
 | `IntentPicker(selection, { intent($0) }) { … }` | Commit a picker change by running an intent |
+| `IntentCustomPicker(selection, { intent($0) }) { … }` | The same for a `CustomPicker`; the selection is a value, an optional value (choosing the selected option again clears it to `nil`), or a set |
 | `IntentToggle(isOn:, { intent($0) }) { label }` | Commit a toggle change by running an intent |
 | `.onChange(of: value, initial: false, trigger: intent)` | Run when a value changes; a new value cancels the run in flight |
 | `.task(intent)`, `.task(id: id, intent)` | Run when the view appears (and when `id` changes) |
@@ -91,7 +92,7 @@ Every trigger runs an intent from a view and cancels the run when the view is re
 The overloads that take an intent sit next to SwiftUI's closure forms, so
 `.onSubmit { … }` and `.onSubmit(of: .text, SaveIntent())` both work.
 
-`IntentButton` and `IntentPicker` disable themselves while the intent runs. Neither draws a
+`IntentButton`, `IntentPicker` and `IntentCustomPicker` disable themselves while the intent runs. None draws a
 progress indicator: while an intent runs, `isLoading` is `true` in the environment, and your
 label or `ButtonStyle` draws whatever it wants.
 
@@ -164,7 +165,7 @@ cancellation) and `ProgressReportingIntent` (publishes a `Progress`).
 
 ## What is covered
 
-- ✅ `IntentButton`, `IntentPicker`, `IntentToggle`, `onChange(of:initial:trigger:)`, `task`, `refreshable`, `onSubmit`, `onOpenURL`, `onContinueUserActivity`, `fileImporter`, `fileExporter`, `onDisappear` (long-running only)
+- ✅ `IntentButton`, `IntentPicker`, `IntentCustomPicker`, `IntentToggle`, `onChange(of:initial:trigger:)`, `task`, `refreshable`, `onSubmit`, `onOpenURL`, `onContinueUserActivity`, `fileImporter`, `fileExporter`, `onDisappear` (long-running only)
 - ✅ Error, value, phase and progress hooks; `IntentHandle`; the three markers; sequential and concurrent composition; `@IntentContext`
 - 🚧 Not yet: `onDelete` / `onMove`, `onReceive`, `onKeyPress`, macOS commands, `Slider` and `Stepper`, `DatePicker` and `ColorPicker`, `onLongPressGesture`
 - ❌ Not planned: `onAppear` (use `task`), `onTapGesture` (use `IntentButton`), `onHover`, `onDrop`, scroll and geometry observers, running an intent from code that has no view, a report to the screen after a view is gone, retry and queueing of intents across launches, Siri and App Intents
